@@ -1,0 +1,16 @@
+                  List of relations
+ Schema |         Name         | Type  |    Owner    
+--------+----------------------+-------+-------------
+ public | answers              | table | axiom
+ public | game_rounds          | table | axiom
+ public | knex_migrations      | table | trivia_user
+ public | knex_migrations_lock | table | trivia_user
+ public | leaderboards         | table | axiom
+ public | player_profiles      | table | axiom
+ public | player_statistics    | table | axiom
+ public | players              | table | axiom
+ public | question_cache       | table | axiom
+ public | session_questions    | table | postgres
+ public | sessions             | table | axiom
+(11 rows)
+

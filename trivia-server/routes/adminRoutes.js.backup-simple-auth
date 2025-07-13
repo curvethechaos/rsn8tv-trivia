@@ -1,0 +1,309 @@
+// routes/adminRoutes.js - Admin management routes
+const express = require('express');
+const router = express.Router();
+const db = require('../db/connection');
+const { cache, questionCache } = require('../utils/cache');
+const logger = require('../utils/logger');
+const { body, validationResult } = require('express-validator');
+
+// Simple admin authentication middleware (implement proper auth in production)
+const adminAuth = (req, res, next) => {
+  const adminToken = req.headers['x-admin-token'];
+  
+  // In production, validate against real admin tokens
+  if (adminToken !== process.env.ADMIN_TOKEN) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  
+  next();
+};
+
+// Apply admin auth to all routes
+router.use(adminAuth);
+
+// Get system statistics
+router.get('/stats', async (req, res) => {
+  try {
+    // Get various statistics
+    const [
+      totalSessions,
+      activeSessions,
+      totalPlayers,
+      registeredPlayers,
+      totalQuestions,
+      cacheStats
+    ] = await Promise.all([
+      db('sessions').count('id as count'),
+      db('sessions').where('is_active', true).count('id as count'),
+      db('players').count('id as count'),
+      db('player_profiles').count('id as count'),
+      db('question_cache').count('id as count'),
+      Promise.resolve(cache.getStats())
+    ]);
+    
+    // Get recent activity
+    const recentSessions = await db('sessions')
+      .orderBy('created_at', 'desc')
+      .limit(10)
+      .select('id', 'room_code', 'is_active', 'created_at');
+    
+    const recentPlayers = await db('player_profiles')
+      .orderBy('created_at', 'desc')
+      .limit(10)
+      .select('id', 'nickname', 'email', 'created_at');
+    
+    res.json({
+      success: true,
+      stats: {
+        sessions: {
+          total: parseInt(totalSessions[0].count),
+          active: parseInt(activeSessions[0].count)
+        },
+        players: {
+          total: parseInt(totalPlayers[0].count),
+          registered: parseInt(registeredPlayers[0].count)
+        },
+        questions: {
+          cached: parseInt(totalQuestions[0].count)
+        },
+        cache: cacheStats
+      },
+      recent: {
+        sessions: recentSessions,
+        players: recentPlayers
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error getting admin stats:', error);
+    res.status(500).json({ error: 'Failed to get statistics' });
+  }
+});
+
+// Manage question cache
+router.post('/questions/cache/refresh', async (req, res) => {
+  try {
+    // Clear existing question cache
+    await questionCache.clearQuestionCache();
+    
+    // In production, this would trigger fetching new questions from APIs
+    logger.info('Question cache refresh requested');
+    
+    res.json({
+      success: true,
+      message: 'Question cache refresh initiated'
+    });
+    
+  } catch (error) {
+    logger.error('Error refreshing question cache:', error);
+    res.status(500).json({ error: 'Failed to refresh question cache' });
+  }
+});
+
+// Moderate player nicknames
+router.put('/players/:playerId/moderate', [
+  body('approved').notEmpty().isBoolean(),
+  body('reason').optional().isString()
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { playerId } = req.params;
+    const { approved, reason } = req.body;
+    
+    const [updated] = await db('player_profiles')
+      .where('id', playerId)
+      .update({
+        nickname_approved: approved,
+        moderation_notes: reason
+      })
+      .returning(['id', 'nickname', 'nickname_approved']);
+    
+    if (!updated) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    
+    logger.info('Player nickname moderated', { playerId, approved, reason });
+    
+    res.json({
+      success: true,
+      player: updated
+    });
+    
+  } catch (error) {
+    logger.error('Error moderating player:', error);
+    res.status(500).json({ error: 'Failed to moderate player' });
+  }
+});
+
+// Get sessions with filters
+router.get('/sessions', async (req, res) => {
+  try {
+    const {
+      active = null,
+      startDate = null,
+      endDate = null,
+      limit = 50,
+      offset = 0
+    } = req.query;
+    
+    let query = db('sessions as s')
+      .leftJoin(
+        db('players')
+          .select('session_id')
+          .count('id as player_count')
+          .groupBy('session_id')
+          .as('p'),
+        's.id',
+        'p.session_id'
+      )
+      .select(
+        's.id',
+        's.room_code',
+        's.host_id',
+        's.is_active',
+        's.current_round',
+        's.created_at',
+        's.expires_at',
+        db.raw('COALESCE(p.player_count, 0) as player_count')
+      );
+    
+    // Apply filters
+    if (active !== null) {
+      query = query.where('s.is_active', active === 'true');
+    }
+    
+    if (startDate) {
+      query = query.where('s.created_at', '>=', new Date(startDate));
+    }
+    
+    if (endDate) {
+      query = query.where('s.created_at', '<=', new Date(endDate));
+    }
+    
+    // Get total count
+    const totalCount = await query.clone().count('* as count');
+    
+    // Apply pagination
+    const sessions = await query
+      .orderBy('s.created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
+    
+    res.json({
+      success: true,
+      sessions,
+      pagination: {
+        total: parseInt(totalCount[0].count),
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Error getting sessions:', error);
+    res.status(500).json({ error: 'Failed to get sessions' });
+  }
+});
+
+// End a specific session
+router.post('/sessions/:sessionId/end', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    
+    await db('sessions')
+      .where('id', sessionId)
+      .update({
+        is_active: false,
+        ended_at: new Date()
+      });
+    
+    // Clear session cache
+    await cache.del(`session:${sessionId}`);
+    
+    // Remove from room manager if exists
+    if (global.roomManager) {
+      global.roomManager.deleteRoom(sessionId);
+    }
+    
+    logger.info('Admin ended session', { sessionId });
+    
+    res.json({
+      success: true,
+      message: 'Session ended successfully'
+    });
+    
+  } catch (error) {
+    logger.error('Error ending session:', error);
+    res.status(500).json({ error: 'Failed to end session' });
+  }
+});
+
+// Recalculate leaderboard rankings
+router.post('/leaderboards/recalculate', async (req, res) => {
+  try {
+    const { period = 'weekly' } = req.body;
+    
+    // This would typically be a background job
+    // For now, we'll do a simple recalculation
+    
+    logger.info('Leaderboard recalculation requested', { period });
+    
+    // TODO: Implement actual recalculation logic
+    // This would involve:
+    // 1. Getting all scores for the period
+    // 2. Calculating rankings
+    // 3. Updating the leaderboards table
+    
+    res.json({
+      success: true,
+      message: 'Leaderboard recalculation initiated',
+      period
+    });
+    
+  } catch (error) {
+    logger.error('Error recalculating leaderboard:', error);
+    res.status(500).json({ error: 'Failed to recalculate leaderboard' });
+  }
+});
+
+// Clear all cache
+router.post('/cache/clear', async (req, res) => {
+  try {
+    await cache.flush();
+    
+    logger.warn('Admin cleared all cache');
+    
+    res.json({
+      success: true,
+      message: 'All cache cleared successfully'
+    });
+    
+  } catch (error) {
+    logger.error('Error clearing cache:', error);
+    res.status(500).json({ error: 'Failed to clear cache' });
+  }
+});
+
+// Get system logs (basic implementation)
+router.get('/logs', async (req, res) => {
+  try {
+    const { level = 'info', limit = 100 } = req.query;
+    
+    // In production, this would read from actual log files or log management system
+    res.json({
+      success: true,
+      message: 'Log retrieval not implemented in development mode',
+      logs: []
+    });
+    
+  } catch (error) {
+    logger.error('Error getting logs:', error);
+    res.status(500).json({ error: 'Failed to get logs' });
+  }
+});
+
+module.exports = router;

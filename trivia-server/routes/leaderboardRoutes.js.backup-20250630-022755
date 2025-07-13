@@ -1,0 +1,285 @@
+// routes/leaderboardRoutes.js
+const express = require('express');
+const router = express.Router();
+const knex = require('../db/connection');
+const { v4: uuidv4 } = require('uuid');
+
+// Middleware to validate request body
+const validateScoreSubmission = (req, res, next) => {
+  const { clientId, email, nickname, realName, marketingConsent, deviceFingerprint } = req.body;
+
+  if (!clientId || !email || !nickname || !realName || marketingConsent === undefined || !deviceFingerprint) {
+    return res.status(400).json({
+      success: false,
+      error: 'Missing required fields: clientId, email, nickname, realName, marketingConsent, deviceFingerprint'
+    });
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid email format'
+    });
+  }
+
+  next();
+};
+
+// POST /api/sessions/:sessionId/submit-score
+router.post('/sessions/:sessionId/submit-score', validateScoreSubmission, async (req, res) => {
+  const { sessionId } = req.params;
+  const { clientId, email, nickname, realName, marketingConsent, deviceFingerprint } = req.body;
+
+  try {
+    // Start a transaction
+    const result = await knex.transaction(async (trx) => {
+      // 1. Verify session exists and get player info
+      const session = await trx('sessions')
+        .where('id', sessionId)
+        .first();
+
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      // 2. Get the player's score from this session
+      const player = await trx('players')
+        .where('session_id', sessionId)
+        .where('client_id', clientId)
+        .first();
+
+      if (!player) {
+        throw new Error('Player not found in this session');
+      }
+
+      // 3. Check if player profile already exists
+      let playerProfile = await trx('player_profiles')
+        .where('email', email.toLowerCase())
+        .first();
+
+      if (!playerProfile) {
+        // Create new player profile
+        const [newProfile] = await trx('player_profiles')
+          .insert({
+            email: email.toLowerCase(),
+            nickname,
+            real_name: realName,
+            marketing_consent: marketingConsent,
+            marketing_consent_timestamp: marketingConsent ? new Date() : null,
+            device_fingerprint: deviceFingerprint,
+            nickname_approved: true, // Will be checked by profanity service
+            total_games_played: 0,
+            total_score: 0,
+            created_at: new Date()
+          })
+          .returning('*');
+        playerProfile = newProfile;
+      } else {
+        // Update device fingerprint if changed
+        if (playerProfile.device_fingerprint !== deviceFingerprint) {
+          await trx('player_profiles')
+            .where('id', playerProfile.id)
+            .update({
+              device_fingerprint: deviceFingerprint,
+              last_played: new Date()
+            });
+        }
+      }
+
+      // 4. Insert score (this will trigger leaderboard updates)
+      await trx('scores')
+        .insert({
+          player_profile_id: playerProfile.id,
+          session_id: sessionId,
+          score: player.score,
+          device_fingerprint: deviceFingerprint,
+          submitted_at: new Date()
+        });
+
+      // 5. Update player profile stats
+      await trx('player_profiles')
+        .where('id', playerProfile.id)
+        .update({
+          total_games_played: knex.raw('total_games_played + 1'),
+          total_score: knex.raw('total_score + ?', [player.score]),
+          last_played: new Date()
+        });
+
+      // 6. Get current leaderboard positions
+      const periods = ['weekly', 'monthly', 'quarterly', 'yearly'];
+      const leaderboardPositions = {};
+      const prizeEligibility = {};
+
+      for (const period of periods) {
+        // Get player's rank for this period
+        const result = await trx.raw(`
+          SELECT rank_position
+          FROM leaderboards
+          WHERE player_profile_id = ?
+            AND period_type = ?
+            AND period_start = get_period_start(CURRENT_DATE, ?)
+        `, [playerProfile.id, period, period]);
+
+        leaderboardPositions[period] = result.rows[0]?.rank_position || null;
+
+        // Check prize eligibility
+        const eligibility = await trx.raw(`
+          SELECT * FROM check_prize_eligibility(?, ?)
+        `, [player.score, period]);
+
+        prizeEligibility[period] = eligibility.rows[0]?.check_prize_eligibility?.qualifies || false;
+      }
+
+      // 7. Mark player as registered in the session
+      await trx('players')
+        .where('id', player.id)
+        .update({
+          is_registered: true,
+          player_profile_id: playerProfile.id
+        });
+
+      return {
+        playerProfileId: playerProfile.id,
+        leaderboardPositions,
+        prizeEligibility,
+        score: player.score
+      };
+    });
+
+    res.json({
+      success: true,
+      playerProfileId: result.playerProfileId,
+      leaderboardPositions: result.leaderboardPositions,
+      prizeEligibility: result.prizeEligibility
+    });
+
+  } catch (error) {
+    console.error('Score submission error:', error);
+    res.status(error.message === 'Session not found' || error.message === 'Player not found in this session' ? 404 : 500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// GET /api/leaderboards
+router.get('/', async (req, res) => {
+  const { period = 'weekly', limit = 100 } = req.query;
+
+  // Validate period
+  const validPeriods = ['weekly', 'monthly', 'quarterly', 'yearly'];
+  if (!validPeriods.includes(period)) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid period. Must be one of: weekly, monthly, quarterly, yearly'
+    });
+  }
+
+  // Validate limit
+  const numLimit = parseInt(limit);
+  if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid limit. Must be between 1 and 1000'
+    });
+  }
+
+  try {
+    // Get current period dates
+    const periodDates = await knex.raw(`
+      SELECT
+        get_period_start(CURRENT_DATE, ?) as start_date,
+        get_period_end(CURRENT_DATE, ?) as end_date
+    `, [period, period]);
+
+    const { start_date, end_date } = periodDates.rows[0];
+
+    // Get leaderboard using the database function
+    const leaderboard = await knex.raw(`
+      SELECT * FROM get_leaderboard(?, ?)
+    `, [period, numLimit]);
+
+    // Format the response
+    const formattedLeaderboard = leaderboard.rows.map(row => ({
+      rank: row.rank,
+      nickname: row.nickname,
+      totalScore: row.total_score,
+      gamesPlayed: row.games_played,
+      averageScore: parseFloat(row.average_score)
+    }));
+
+    res.json({
+      success: true,
+      period,
+      currentPeriod: {
+        start: start_date,
+        end: end_date
+      },
+      leaderboard: formattedLeaderboard
+    });
+
+  } catch (error) {
+    console.error('Leaderboard fetch error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch leaderboard'
+    });
+  }
+});
+
+// GET /api/leaderboards/player/:playerId
+// Optional: Get a specific player's rankings across all periods
+router.get('/player/:playerId', async (req, res) => {
+  const { playerId } = req.params;
+
+  try {
+    const rankings = await knex('leaderboards as l')
+      .join('player_profiles as pp', 'l.player_profile_id', 'pp.id')
+      .where('pp.id', playerId)
+      .whereRaw('l.period_start <= CURRENT_DATE')
+      .whereRaw('l.period_end >= CURRENT_DATE')
+      .select(
+        'l.period_type',
+        'l.rank_position',
+        'l.total_score',
+        'l.games_played',
+        'l.average_score',
+        'pp.nickname'
+      );
+
+    if (rankings.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Player not found or has no leaderboard entries'
+      });
+    }
+
+    const formattedRankings = {};
+    rankings.forEach(r => {
+      formattedRankings[r.period_type] = {
+        rank: r.rank_position,
+        totalScore: r.total_score,
+        gamesPlayed: r.games_played,
+        averageScore: parseFloat(r.average_score)
+      };
+    });
+
+    res.json({
+      success: true,
+      playerId,
+      nickname: rankings[0].nickname,
+      rankings: formattedRankings
+    });
+
+  } catch (error) {
+    console.error('Player rankings fetch error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch player rankings'
+    });
+  }
+});
+
+module.exports = router;

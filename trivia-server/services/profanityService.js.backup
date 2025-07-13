@@ -1,0 +1,178 @@
+// services/profanityService.js
+const axios = require('axios');
+const logger = require('../utils/logger');
+
+class ProfanityService {
+  constructor() {
+    // Use the free public endpoint - no API key needed!
+    this.apiUrl = 'https://vector.profanity.dev';
+    
+    // Optional: Set this to your self-hosted instance if you deploy one
+    // this.apiUrl = process.env.PROFANITY_API_URL || 'https://vector.profanity.dev';
+  }
+
+  /**
+   * Check if text contains profanity
+   * @param {string|Array<string>} texts - Text or array of texts to check
+   * @returns {Promise<boolean>} - True if profanity detected
+   */
+  async check(texts) {
+    try {
+      // Convert to array if single string
+      const textsArray = Array.isArray(texts) ? texts : [texts];
+      
+      // Check each text
+      for (const text of textsArray) {
+        if (!text || text.trim() === '') continue;
+        
+        const response = await axios.post(this.apiUrl, {
+          message: text
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000 // 5 second timeout
+        });
+
+        // If any profanity found, return true
+        if (response.data.isProfanity === true) {
+          logger.warn(`Profanity detected in text: "${text.substring(0, 50)}..."`);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      logger.error('Profanity check error:', error.message);
+      // Fail open - allow if service is down to not block users
+      // You might want to change this to fail closed (return true) for stricter filtering
+      return false;
+    }
+  }
+
+  /**
+   * Get cleaned version of text with profanity removed
+   * @param {string} text - Text to clean
+   * @returns {Promise<string>} - Cleaned text
+   */
+  async clean(text) {
+    try {
+      if (!text || text.trim() === '') return text;
+
+      const response = await axios.post(this.apiUrl, {
+        message: text
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 5000
+      });
+
+      return text;
+    } catch (error) {
+      logger.error('Profanity clean error:', error.message);
+      // Return original text if service fails
+      return text;
+    }
+  }
+
+  /**
+   * Check multiple fields and return detailed results
+   * @param {Object} fields - Object with field names and values
+   * @returns {Promise<Object>} - Results for each field
+   */
+  async checkFields(fields) {
+    const results = {
+      hasProfileProfanity: false,
+      details: {}
+    };
+
+    try {
+      for (const [fieldName, value] of Object.entries(fields)) {
+        if (!value || value.trim() === '') {
+          results.details[fieldName] = { clean: true, original: value, cleaned: value };
+          continue;
+        }
+
+        const response = await axios.post(this.apiUrl, {
+          message: value
+        }, {
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 5000
+        });
+
+        const hasProfanity = response.data.isProfanity === true;
+        
+        results.details[fieldName] = {
+          clean: !hasProfanity,
+          original: value,
+          cleaned: response.data.clean || value,
+          profanityFound: response.data.profanity || []
+        };
+
+        if (hasProfanity) {
+          results.hasProfileProfanity = true;
+        }
+      }
+    } catch (error) {
+      logger.error('Profanity field check error:', error.message);
+      // On error, mark all fields as clean to not block users
+      for (const fieldName of Object.keys(fields)) {
+        results.details[fieldName] = { 
+          clean: true, 
+          original: fields[fieldName], 
+          cleaned: fields[fieldName] 
+        };
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Validate player registration data
+   * @param {Object} data - Player data with realName and nickname
+   * @returns {Promise<Object>} - Validation result
+   */
+  async validatePlayerData(data) {
+    const { realName, nickname } = data;
+    
+    const result = await this.checkFields({
+      realName: realName,
+      nickname: nickname
+    });
+
+    if (result.hasProfileProfanity) {
+      const problematicFields = Object.entries(result.details)
+        .filter(([_, detail]) => !detail.clean)
+        .map(([field, _]) => field);
+
+      return {
+        valid: false,
+        message: `Please choose appropriate names. Issues found in: ${problematicFields.join(', ')}`,
+        details: result.details,
+        suggestions: {
+          realName: result.details.realName.cleaned,
+          nickname: result.details.nickname.cleaned
+        }
+      };
+    }
+
+    return {
+      valid: true,
+      message: 'Names are appropriate',
+      details: result.details
+    };
+  }
+
+  /**
+   * Get profanity statistics for monitoring
+   * @returns {Object} - Service statistics
+   */
+  getStats() {
+    return {
+      endpoint: this.apiUrl,
+      isSelfHosted: !this.apiUrl.includes('vector.profanity.dev'),
+      status: 'active'
+    };
+  }
+}
+
+// Export singleton instance
+module.exports = new ProfanityService();

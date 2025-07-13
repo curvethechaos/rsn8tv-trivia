@@ -1,0 +1,19 @@
+--- playerHandler.js.before-fix	2025-06-24 00:00:00.000000000 +0000
++++ playerHandler.js	2025-06-24 00:00:00.000000000 +0000
+@@ -40,6 +40,16 @@
+       playerCount: io.sockets.adapter.rooms.get(sessionId)?.size || 0
+     });
+ 
++    // Add player to GameManager
++    const gameManager = app.locals.gameManager;
++    if (gameManager) {
++      const nickname = `Player ${io.sockets.adapter.rooms.get(sessionId)?.size || 1}`;
++      gameManager.addPlayer(sessionId, clientId, nickname);
++      console.log(`Added player ${clientId} to GameManager with nickname: ${nickname}`);
++    } else {
++      console.error('GameManager not found in app.locals');
++    }
++
+     console.log(`Player ${clientId} joined session ${sessionId}`);
+   });
+ 

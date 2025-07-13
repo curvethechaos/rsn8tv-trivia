@@ -1,0 +1,52 @@
+// profanityMiddleware.js - Middleware for profanity checking
+module.exports = function(profanityService) {
+  return {
+    async checkProfanity(text) {
+      if (!text || typeof text !== 'string') {
+        return { hasProfanity: false };
+      }
+
+      try {
+        // Check if profanityService exists and has checkText method
+        if (!profanityService || typeof profanityService.checkText !== 'function') {
+          console.error('ProfanityService not properly initialized');
+          return { hasProfanity: false };
+        }
+
+        const isProfane = await profanityService.checkText(text);
+        
+        if (isProfane) {
+          const funnyMessages = [
+            "🚨 WOAH THERE! Our trivia bot nearly fainted! That nickname needs a bar of soap. Try something more family-friendly!",
+            "🎤 *mic drop* That nickname just got REJECTED! Our game show host is blushing. Pick something cleaner!",
+            "🔥 HOT TAKE: That nickname is too spicy for prime time! Let's keep it PG, superstar!",
+            "🚫 BUZZ! Wrong answer! That nickname wouldn't make it past the censors. Give us something grandma would approve!",
+            "🎪 PLOT TWIST! Your nickname got bounced by security. Even our virtual bouncers have standards!",
+            "💣 BOOM! That nickname just exploded our profanity detector. Try again with less... explosion?",
+            "🎭 DRAMA ALERT! Your nickname just got the hook! Exit stage left and try a cleaner entrance!",
+            "🏆 ACHIEVEMENT UNLOCKED: Most Creative Use of Naughty Words! Now unlock a clean nickname instead!",
+            "🚀 HOUSTON, WE HAVE A PROBLEM! That nickname won't fly in our trivia space. Ground control suggests a do-over!",
+            "🎨 ARTISTIC CHOICE... but no. Our trivia game is rated E for Everyone. Repaint that nickname!",
+            "🔔 DING DONG! Profanity police at your door! They're here about your nickname. Try again!",
+            "🌶️ TOO MUCH SAUCE! That nickname is burning our servers. Cool it down with something nicer!",
+            "🎯 MISSED THE TARGET! That nickname hit our naughty list instead. Aim for the nice list!",
+            "🎪 CIRCUS CALLED: They want their clown back! But first, pick a family-friendly nickname!"
+          ];
+          
+          const randomMessage = funnyMessages[Math.floor(Math.random() * funnyMessages.length)];
+          
+          return {
+            hasProfanity: true,
+            message: randomMessage
+          };
+        }
+        
+        return { hasProfanity: false };
+        
+      } catch (error) {
+        console.error('Profanity check error:', error);
+        return { hasProfanity: false };
+      }
+    }
+  };
+};

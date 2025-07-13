@@ -1,0 +1,217 @@
+const db = require('../db/connection');
+const router = require('express').Router();
+const authMiddleware = require('../middleware/authMiddleware');
+const multer = require('multer');
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+const db = require('../db/connection');
+
+// Import services
+const themeService = require('../services/themeService');
+const brandingService = require('../services/brandingService');
+const questionService = require('../services/questionService');
+const prizeService = require('../services/prizeService');
+const exportService = require('../services/exportService');
+
+// Stats endpoint
+//router.get('/stats', authMiddleware, async (req, res, next) => {
+  //try {
+    //const stats = await db('sessions')
+      //.select(
+        //db.raw('COUNT(DISTINCT sessions.id) as total_sessions'),
+        //db.raw('COUNT(DISTINCT players.id) as total_players'),
+        //db.raw('COUNT(DISTINCT player_profiles.id) as registered_players')
+     // )
+      //.leftJoin('players', 'players.session_id', 'sessions.id')
+      //.leftJoin('player_profiles', 'player_profiles.id', 'players.player_profile_id')
+     // .first();
+
+//    res.json(stats);
+ // } catch (error) {
+ //   next(error);
+ // }
+//});
+
+// Theme endpoints
+router.get('/theme', authMiddleware, async (req, res, next) => {
+  try {
+    const theme = await themeService.getActiveTheme();
+    res.json(theme);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/theme', authMiddleware, async (req, res, next) => {
+  try {
+    const result = await themeService.saveTheme(req.body, req.user.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/theme/preview/:type', authMiddleware, async (req, res, next) => {
+  try {
+    const preview = await themeService.previewTheme(req.body, req.params.type);
+    res.json(preview);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/theme/:id/activate', authMiddleware, async (req, res, next) => {
+  try {
+    await themeService.activateTheme(req.params.id, req.user.id);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Branding endpoints
+router.post('/branding/:type', authMiddleware, upload.single('file'), async (req, res, next) => {
+  try {
+    const asset = await brandingService.uploadAsset(
+      req.params.type,
+      req.file,
+      req.user.id,
+      req.body.venue_id
+    );
+    res.json(asset);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/branding', authMiddleware, async (req, res, next) => {
+  try {
+    const assets = await brandingService.getActiveAssets(req.query.venue_id);
+    res.json(assets);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete('/branding/:id', authMiddleware, async (req, res, next) => {
+  try {
+    await brandingService.deleteAsset(req.params.id, req.user.id);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Question management
+router.get('/questions', authMiddleware, async (req, res, next) => {
+  try {
+    const { page = 1, limit = 50, category, difficulty, search, status } = req.query;
+    const questions = await questionService.getQuestions(
+      { category, difficulty, search, status },
+      { page: parseInt(page), limit: parseInt(limit) }
+    );
+    res.json(questions);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/questions/import', authMiddleware, upload.single('csv'), async (req, res, next) => {
+  try {
+    const result = await questionService.importQuestions(req.file.path, req.user.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/questions/export', authMiddleware, async (req, res, next) => {
+  try {
+    const { category, difficulty, status } = req.query;
+    const questions = await questionService.exportQuestions({ category, difficulty, status });
+    
+    // Create CSV export
+    const exportId = await exportService.createExport(
+      'questions',
+      { category, difficulty, status },
+      req.user.id,
+      { format: 'csv' }
+    );
+    
+    res.json({ exportId });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/questions/:id/flag', authMiddleware, async (req, res, next) => {
+  try {
+    await questionService.flagQuestion(req.params.id, req.user.id, req.body.reason);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/questions/:id', authMiddleware, async (req, res, next) => {
+  try {
+    await questionService.updateQuestion(req.params.id, req.body, req.user.id);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/questions/categories', authMiddleware, async (req, res, next) => {
+  try {
+    const categories = await questionService.getCategories();
+    res.json(categories);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Prize management
+router.get('/prizes/winners', authMiddleware, async (req, res, next) => {
+  try {
+    const { period, startDate, endDate, status } = req.query;
+    const winners = await prizeService.getWinners({ period, startDate, endDate, status });
+    res.json(winners);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/prizes/check-winners', authMiddleware, async (req, res, next) => {
+  try {
+    const results = await prizeService.checkWinners(req.body.period || 'weekly');
+    res.json(results);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/prizes/winners/:id/notify', authMiddleware, async (req, res, next) => {
+  try {
+    const result = await prizeService.notifyWinner(req.params.id);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/prizes/winners/:id/claim', authMiddleware, async (req, res, next) => {
+  try {
+    await prizeService.claimPrize(req.params.id, req.body);
+    res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Export management
+router.use('/exports', require('./exportRoutes'));
+
+module.exports = router;
