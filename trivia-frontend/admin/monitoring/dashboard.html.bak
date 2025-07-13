@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSN8TV Admin Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+    <style>
+        /* Loading states */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .loading::after {
+            content: " Loading...";
+            color: #666;
+        }
+        
+        /* Success/Error messages */
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        .message.success {
+            background: #4ade80;
+            color: #000;
+        }
+        .message.error {
+            background: #ef4444;
+            color: #fff;
+        }
+        .message.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="admin-header">
+            <h1>RSN8TV Admin Dashboard</h1>
+            <div class="header-actions">
+                <span id="userInfo"></span>
+                <button onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="admin-nav">
+            <button class="nav-tab active" onclick="showTab('players')">Players</button>
+            <button class="nav-tab" onclick="showTab('leaderboards')">Leaderboards</button>
+            <button class="nav-tab" onclick="showTab('theme')">Theme Editor</button>
+            <button class="nav-tab" onclick="showTab('branding')">Branding</button>
+            <button class="nav-tab" onclick="showTab('questions')">Questions</button>
+            <button class="nav-tab" onclick="showTab('analytics')">Analytics</button>
+            <button class="nav-tab" onclick="showTab('venues')">Venues</button>
+            <button class="nav-tab" onclick="showTab('prizes')">Prizes</button>
+            <button class="nav-tab" onclick="showTab('schedule')">Schedule</button>
+            <button class="nav-tab" onclick="showTab('marketing')">Marketing</button>
+            <button class="nav-tab" onclick="showTab('api')">API</button>
+            <button class="nav-tab" onclick="showTab('settings')">Settings</button>
+            <button class="nav-tab" onclick="showTab('current-games')">Current Games</button>
+        </nav>
+
+        <!-- Message Container -->
+        <div id="globalMessage" class="message"></div>
+
+        <!-- Main Content Area -->
+        <main class="admin-content">
+            <!-- Players Tab -->
+            <div id="players-tab" class="tab-content active">
+                <div class="tab-header">
+                    <h2>Player Management</h2>
+                    <div class="header-stats">
+                        <span class="stat">Total: <strong id="totalPlayers">0</strong></span>
+                        <span class="stat">Registered: <strong id="registeredPlayers">0</strong></span>
+                        <span class="stat">With Email: <strong id="playersWithEmail">0</strong></span>
+                    </div>
+                </div>
+
+                <div class="filters-section">
+                    <input type="text" id="playerSearch" placeholder="Search by name or email..." onkeyup="searchPlayers()">
+                    <select id="playerFilter" onchange="filterPlayers()">
+                        <option value="all">All Players</option>
+                        <option value="registered">Registered Only</option>
+                        <option value="with-email">With Email</option>
+                        <option value="marketing">Marketing Consent</option>
+                    </select>
+                    <button onclick="exportPlayers()">Export Selected</button>
+                    <button onclick="exportMarketingList()">Export Marketing List</button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="selectAllPlayers" onchange="toggleAllPlayers()"></th>
+                                <th>Nickname</th>
+                                <th>Email</th>
+                                <th>Real Name</th>
+                                <th>Games Played</th>
+                                <th>High Score</th>
+                                <th>Marketing</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="playersTableBody">
+                            <!-- Players will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button onclick="loadPlayers(currentPlayersPage - 1)" id="playersPrevBtn">Previous</button>
+                    <span id="playersPageInfo">Page 1 of 1</span>
+                    <button onclick="loadPlayers(currentPlayersPage + 1)" id="playersNextBtn">Next</button>
+                </div>
+            </div>
+
+            <!-- Leaderboards Tab -->
+            <div id="leaderboards-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Leaderboards</h2>
+                    <div class="period-selector">
+                        <button class="period-btn active" onclick="loadLeaderboard('weekly')">Weekly</button>
+                        <button class="period-btn" onclick="loadLeaderboard('monthly')">Monthly</button>
+                        <button class="period-btn" onclick="loadLeaderboard('quarterly')">Quarterly</button>
+                        <button class="period-btn" onclick="loadLeaderboard('yearly')">Yearly</button>
+                    </div>
+                </div>
+
+                <div class="leaderboard-actions">
+                    <button onclick="exportLeaderboard()">Export Current View</button>
+                    <button onclick="exportPrizeWinners()">Export Prize Winners</button>
+                    <button onclick="sendWinnerEmails()">Email Winners</button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Player</th>
+                                <th>Score</th>
+                                <th>Date Achieved</th>
+                                <th>Prize Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardTableBody">
+                            <!-- Leaderboard will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Theme Editor Tab -->
+            <div id="theme-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Theme Editor</h2>
+                    <button class="save-btn" onclick="saveTheme()">Save Theme</button>
+                </div>
+
+                <div class="theme-editor">
+                    <div class="color-controls">
+                        <h3>Colors</h3>
+                        <div class="color-group">
+                            <label>Primary Color</label>
+                            <input type="color" id="primaryColor" value="#ff6b35" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Secondary Color</label>
+                            <input type="color" id="secondaryColor" value="#f7931e" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Background Dark</label>
+                            <input type="color" id="bgDark" value="#0a0a0a" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Background Card</label>
+                            <input type="color" id="bgCard" value="#1a1a1a" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Text Primary</label>
+                            <input type="color" id="textPrimary" value="#ffffff" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Text Secondary</label>
+                            <input type="color" id="textSecondary" value="#b0b0b0" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Success Color</label>
+                            <input type="color" id="successColor" value="#4ade80" onchange="updateThemePreview()">
+                        </div>
+                        <div class="color-group">
+                            <label>Error Color</label>
+                            <input type="color" id="errorColor" value="#ef4444" onchange="updateThemePreview()">
+                        </div>
+                    </div>
+
+                    <div class="preview-section">
+                        <h3>Preview</h3>
+                        <div class="preview-controls">
+                            <select id="previewMode" onchange="updatePreview()">
+                                <option value="player">Player View</option>
+                                <option value="host">Host View</option>
+                            </select>
+                            <button onclick="exportCSS()">Export CSS</button>
+                        </div>
+                        <iframe id="themePreview" src="/trivia/index.html" width="100%" height="600"></iframe>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branding Tab -->
+            <div id="branding-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Branding Management</h2>
+                    <button class="save-btn" onclick="saveBranding()">Save Changes</button>
+                </div>
+
+                <div class="branding-section">
+                    <h3>Logo Management</h3>
+                    
+                    <div class="logo-upload-group">
+                        <label>Main Logo (300x100 recommended)</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="mainLogo" accept="image/*" onchange="handleLogoUpload(this, 'main')">
+                            <label for="mainLogo">Click or drag to upload</label>
+                            <div class="logo-preview" id="mainLogoPreview" style="display: none;">
+                                <img id="mainLogoImg" src="" alt="Main Logo">
+                                <button onclick="removeLogo('main')">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logo-upload-group">
+                        <label>Favicon (32x32 recommended)</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="favicon" accept="image/*" onchange="handleLogoUpload(this, 'favicon')">
+                            <label for="favicon">Click or drag to upload</label>
+                            <div class="logo-preview" id="faviconLogoPreview" style="display: none;">
+                                <img id="faviconLogoImg" src="" alt="Favicon">
+                                <button onclick="removeLogo('favicon')">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="logo-upload-group">
+                        <label>Sponsor Logos</label>
+                        <div class="file-upload-area">
+                            <input type="file" id="sponsorLogos" accept="image/*" multiple onchange="handleSponsorUpload(this)">
+                            <label for="sponsorLogos">Click or drag to upload multiple</label>
+                        </div>
+                        <div class="sponsor-logos-grid" id="sponsorLogosGrid">
+                            <!-- Sponsor logos will be displayed here -->
+                        </div>
+                    </div>
+
+                    <h3>Text Branding</h3>
+                    <div class="form-group">
+                        <label>Company Name</label>
+                        <input type="text" id="companyName" value="RSN8TV Trivia">
+                    </div>
+                    <div class="form-group">
+                        <label>Tagline</label>
+                        <input type="text" id="tagline" value="Real-time multiplayer trivia">
+                    </div>
+                    <div class="form-group">
+                        <label>Footer Text</label>
+                        <input type="text" id="footerText" value="© 2025 RSN8TV. All rights reserved.">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Questions Tab -->
+            <div id="questions-tab" class="tab-content">
+                <div class="tab-header">
+                    <h2>Question Bank Management</h2>
+                    <div class="header-stats">
+                        <span class="stat">Total: <strong id="totalQuestions">0</strong></span>
+                        <span class="stat">Flagged: <strong id="flaggedQuestions">0</strong></span>
+                        <span class="stat">Custom: <strong id="customQuestions">0</strong></span>
+                    </div>
+                </div>
+
+                <div class="filters-section">
+                    <select id="difficultyFilter" onchange="filterQuestions()">
+                        <option value="">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                    <select id="categoryFilter" onchange="filterQuestions()">
+                        <option value="">All Categories</option>
+                    </select>
+                    <input type="text" id="questionSearch" placeholder="Search questions..." onkeyup="searchQuestions()">
+                    <button onclick="showUploadQuestions()">Upload CSV</button>
+                    <button onclick="downloadTemplate()">Download Template</button>
+                    <button onclick="exportQuestions()">Export All</button>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Question</th>
+                                <th>Category</th>
+                                <th>Difficulty</th>
+                                <th>Times Used</th>
+                                <th>Success Rate</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questionsTableBody">
+                            <!-- Questions will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button onclick="loadQuestions(currentQuestionsPage - 1)">Previous</button>
+                    <span id="questionsPageInfo">Page 1 of 1</span>
+                    <button onclick="loadQuestions(currentQuestionsPage + 1)">Next</button>
+                </div>
+            </div>
+
+            <!-- Add other tabs here following the same pattern... -->
+
+        </main>
+    </div>
+
+    <script>
+        // Global variables
+        let currentTab = 'players';
+        let currentPlayersPage = 1;
+        let currentQuestionsPage = 1;
+        let currentLeaderboardPeriod = 'weekly';
+        let authToken = localStorage.getItem('authToken');
+        let refreshToken = localStorage.getItem('refreshToken');
+        const API_BASE = 'https://trivia.rsn8tv.com/api';
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!authToken) {
+                window.location.href = '/admin/login.html';
+                return;
+            }
+            
+            // Set up axios-like defaults
+            setupApiDefaults();
+            
+            // Load initial data
+            loadUserInfo();
+            loadStats();
+            showTab('players');
+        });
+
+        // API Helper Functions
+        async function apiCall(method, endpoint, data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                }
+            };
+
+            if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                
+                if (response.status === 401) {
+                    // Try to refresh token
+                    const refreshed = await refreshAuthToken();
+                    if (refreshed) {
+                        // Retry the request
+                        options.headers.Authorization = `Bearer ${authToken}`;
+                        return fetch(`${API_BASE}${endpoint}`, options);
+                    } else {
+                        // Redirect to login
+                        window.location.href = '/admin/login.html';
+                        return;
+                    }
+                }
+
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.error || 'API request failed');
+                }
+
+                return result;
+            } catch (error) {
+                console.error('API Error:', error);
+                showMessage(error.message, 'error');
+                throw error;
+            }
+        }
+
+        // Refresh token
+        async function refreshAuthToken() {
+            try {
+                const response = await fetch(`${API_BASE}/auth/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ refreshToken })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    authToken = data.data.accessToken;
+                    refreshToken = data.data.refreshToken;
+                    localStorage.setItem('authToken', authToken);
+                    localStorage.setItem('refreshToken', refreshToken);
+                    return true;
+                }
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+            }
+            return false;
+        }
+
+        // Show message
+        function showMessage(message, type = 'success') {
+            const messageEl = document.getElementById('globalMessage');
+            messageEl.textContent = message;
+            messageEl.className = `message ${type} show`;
+            
+            setTimeout(() => {
+                messageEl.classList.remove('show');
+            }, 5000);
+        }
+
+        // Setup API defaults
+        function setupApiDefaults() {
+            // Add auth header to all fetch requests
+            const originalFetch = window.fetch;
+            window.fetch = function(...args) {
+                if (args[0].startsWith(API_BASE) && args[1]) {
+                    args[1].headers = args[1].headers || {};
+                    args[1].headers.Authorization = `Bearer ${authToken}`;
+                }
+                return originalFetch.apply(this, args);
+            };
+        }
+
+        // Load user info
+        async function loadUserInfo() {
+            try {
+                const result = await apiCall('GET', '/auth/me');
+                const user = result.data.user;
+                document.getElementById('userInfo').textContent = `${user.username} (${user.role})`;
+            } catch (error) {
+                console.error('Failed to load user info:', error);
+            }
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const result = await apiCall('GET', '/admin/stats');
+                const stats = result.stats;
+                
+                // Update player stats
+                document.getElementById('totalPlayers').textContent = stats.players.total;
+                document.getElementById('registeredPlayers').textContent = stats.players.registered;
+                
+                // Calculate players with email (this would need backend support)
+                // For now, use registered as a proxy
+                document.getElementById('playersWithEmail').textContent = stats.players.registered;
+                
+                // Update question stats if available
+                if (stats.questions) {
+                    document.getElementById('totalQuestions').textContent = stats.questions.cached || 0;
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            }
+        }
+
+        // Tab switching
+        function showTab(tabName) {
+            // Update active tab button
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            currentTab = tabName;
+
+            // Load tab-specific data
+            switch(tabName) {
+                case 'players':
+                    loadPlayers();
+                    break;
+                case 'leaderboards':
+                    loadLeaderboard(currentLeaderboardPeriod);
+                    break;
+                case 'theme':
+                    loadTheme();
+                    break;
+                case 'branding':
+                    loadBranding();
+                    break;
+                case 'questions':
+                    loadQuestions();
+                    break;
+                case 'prizes':
+                    loadPrizes();
+                    break;
+                case 'current-games':
+                    loadCurrentGames();
+                    break;
+                // Add other cases as needed
+            }
+        }
+
+        // Player Management Functions
+        async function loadPlayers(page = 1) {
+            try {
+                const tbody = document.getElementById('playersTableBody');
+                tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading players...</td></tr>';
+
+                const result = await apiCall('GET', `/admin/players?page=${page}&limit=50`);
+                const players = result.data;
+                const pagination = result.pagination;
+
+                tbody.innerHTML = '';
+                
+                players.forEach(player => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td><input type="checkbox" value="${player.id}"></td>
+                        <td>${player.nickname}</td>
+                        <td>${player.email || '-'}</td>
+                        <td>${player.real_name || '-'}</td>
+                        <td>${player.games_played}</td>
+                        <td>${player.high_score}</td>
+                        <td>${player.marketing_consent ? 'Yes' : 'No'}</td>
+                        <td>${new Date(player.created_at).toLocaleDateString()}</td>
+                        <td>
+                            <button onclick="viewPlayer('${player.id}')">View</button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Update pagination
+                currentPlayersPage = pagination.page;
+                document.getElementById('playersPageInfo').textContent = 
+                    `Page ${pagination.page} of ${pagination.pages}`;
+                document.getElementById('playersPrevBtn').disabled = pagination.page === 1;
+                document.getElementById('playersNextBtn').disabled = pagination.page === pagination.pages;
+
+            } catch (error) {
+                console.error('Failed to load players:', error);
+            }
+        }
+
+        // Utility Functions
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            window.location.href = '/admin/login.html';
+        }
+
+        // Placeholder functions - add implementations as needed
+        function searchPlayers() { loadPlayers(1); }
+        function filterPlayers() { loadPlayers(1); }
+        function exportPlayers() { showMessage('Export feature coming soon'); }
+        function exportMarketingList() { showMessage('Export feature coming soon'); }
+        function viewPlayer(id) { console.log('View player:', id); }
+        function toggleAllPlayers() { console.log('Toggle all players'); }
+        
+        function loadLeaderboard(period) { console.log('Load leaderboard:', period); }
+        function exportLeaderboard() { showMessage('Export feature coming soon'); }
+        function exportPrizeWinners() { showMessage('Export feature coming soon'); }
+        function sendWinnerEmails() { showMessage('Email feature coming soon'); }
+        
+        function loadTheme() { console.log('Load theme'); }
+        function saveTheme() { showMessage('Theme saved'); }
+        function updateThemePreview() { console.log('Update theme preview'); }
+        function updatePreview() { console.log('Update preview'); }
+        function exportCSS() { showMessage('CSS export coming soon'); }
+        
+        function loadBranding() { console.log('Load branding'); }
+        function saveBranding() { showMessage('Branding saved'); }
+        function handleLogoUpload(input, type) { console.log('Upload logo:', type); }
+        function removeLogo(type) { console.log('Remove logo:', type); }
+        function handleSponsorUpload(input) { console.log('Upload sponsor logos'); }
+        
+        function loadQuestions() { console.log('Load questions'); }
+        function filterQuestions() { console.log('Filter questions'); }
+        function searchQuestions() { console.log('Search questions'); }
+        function showUploadQuestions() { showMessage('Upload feature coming soon'); }
+        function downloadTemplate() { showMessage('Template download coming soon'); }
+        function exportQuestions() { showMessage('Export feature coming soon'); }
+        
+        function loadPrizes() { console.log('Load prizes'); }
+        function loadCurrentGames() { console.log('Load current games'); }
+    </script>
+</body>
+</html>
