@@ -1,20 +1,14 @@
 # Node
 node_modules/
 npm-debug.log*
-yarn-error.log*
-package-lock.json
 
 # Environment
 .env
 .env.local
-.env.production
-.env.*
 
 # Logs
 logs/
 *.log
-pm2.logs/
-*.out
 
 # OS
 .DS_Store
@@ -24,25 +18,14 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Sensitive
-*.pem
-*.key
-*.cert
-config/production.json
+# PM2
+.pm2/
 
-# Uploads
-uploads/
+# Temp files
+*.backup
+*.bak
 temp/
 
-# Build
-dist/
-build/
-
-# Database
-*.sql
-*.dump
-database-backups/
-backups/
-
-# AWS
-.aws/
+# System status files
+system_status_*.txt
+status_check.sh

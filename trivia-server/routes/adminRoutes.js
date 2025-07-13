@@ -10,7 +10,7 @@ const path = require('path');
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
@@ -20,7 +20,7 @@ router.get('/stats', async (req, res) => {
   try {
     const db = req.app.locals.db;
     const cache = req.app.locals.cache;
-    
+
     // Get various statistics
     const [
       totalSessions,
@@ -181,7 +181,7 @@ router.get('/theme', async (req, res) => {
   try {
     const themeService = req.app.locals.themeService;
     const theme = await themeService.getCurrentTheme();
-    
+
     res.json({
       success: true,
       data: theme
@@ -195,7 +195,7 @@ router.get('/theme', async (req, res) => {
   }
 });
 
-router.post('/theme', 
+router.post('/theme',
   [
     body('colors').isObject(),
     body('fonts').optional().isObject(),
@@ -204,16 +204,16 @@ router.post('/theme',
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
-        success: false, 
-        errors: errors.array() 
+      return res.status(400).json({
+        success: false,
+        errors: errors.array()
       });
     }
 
     try {
       const themeService = req.app.locals.themeService;
       const theme = await themeService.updateTheme(req.body, req.user.id);
-      
+
       res.json({
         success: true,
         data: theme
@@ -233,7 +233,7 @@ router.get('/branding', async (req, res) => {
   try {
     const brandingService = req.app.locals.brandingService;
     const branding = await brandingService.getCurrentBranding();
-    
+
     res.json({
       success: true,
       data: branding
@@ -258,7 +258,7 @@ router.post('/branding/logo', upload.single('logo'), async (req, res) => {
 
     const brandingService = req.app.locals.brandingService;
     const result = await brandingService.uploadLogo(req.file, 'main');
-    
+
     res.json({
       success: true,
       data: result
@@ -283,7 +283,7 @@ router.post('/branding/favicon', upload.single('favicon'), async (req, res) => {
 
     const brandingService = req.app.locals.brandingService;
     const result = await brandingService.uploadLogo(req.file, 'favicon');
-    
+
     res.json({
       success: true,
       data: result
@@ -308,7 +308,7 @@ router.post('/branding/sponsors', upload.single('sponsor'), async (req, res) => 
 
     const brandingService = req.app.locals.brandingService;
     const result = await brandingService.uploadSponsorLogo(req.file);
-    
+
     res.json({
       success: true,
       data: result
@@ -327,7 +327,7 @@ router.get('/questions', async (req, res) => {
   try {
     const questionService = req.app.locals.questionService;
     const { page = 1, limit = 50, difficulty, category, search, status } = req.query;
-    
+
     const result = await questionService.getQuestions({
       page: parseInt(page),
       limit: parseInt(limit),
@@ -336,7 +336,7 @@ router.get('/questions', async (req, res) => {
       search,
       status
     });
-    
+
     res.json({
       success: true,
       data: result.questions,
@@ -370,7 +370,7 @@ router.post('/questions/import', upload.single('file'), async (req, res) => {
 
     const questionService = req.app.locals.questionService;
     const result = await questionService.importQuestions(req.file);
-    
+
     res.json({
       success: true,
       data: result
@@ -388,9 +388,9 @@ router.get('/questions/export', async (req, res) => {
   try {
     const questionService = req.app.locals.questionService;
     const exportService = req.app.locals.exportService;
-    
+
     const exportId = await exportService.createExport('questions', req.query, req.user.id);
-    
+
     res.json({
       success: true,
       data: { exportId }
@@ -408,7 +408,7 @@ router.post('/questions/:id/flag', async (req, res) => {
   try {
     const questionService = req.app.locals.questionService;
     const result = await questionService.flagQuestion(req.params.id, req.user.id);
-    
+
     res.json({
       success: true,
       data: result
@@ -427,7 +427,7 @@ router.get('/prizes/time-based', async (req, res) => {
   try {
     const prizeService = req.app.locals.prizeService;
     const prizes = await prizeService.getTimeBasedPrizes();
-    
+
     res.json({
       success: true,
       data: prizes
@@ -445,7 +445,7 @@ router.get('/prizes/threshold', async (req, res) => {
   try {
     const prizeService = req.app.locals.prizeService;
     const threshold = await prizeService.getThresholdPrize();
-    
+
     res.json({
       success: true,
       data: threshold
@@ -463,9 +463,9 @@ router.get('/prizes/winners', async (req, res) => {
   try {
     const prizeService = req.app.locals.prizeService;
     const { period = 'weekly', type = 'time-based' } = req.query;
-    
+
     const winners = await prizeService.getPrizeWinners(period, type);
-    
+
     res.json({
       success: true,
       data: winners
@@ -559,15 +559,15 @@ router.get('/current-games', async (req, res) => {
   try {
     const gameManager = req.app.locals.gameManager;
     const db = req.app.locals.db;
-    
+
     const games = [];
-    
+
     if (gameManager && gameManager.games) {
       for (const [sessionId, game] of gameManager.games) {
         const session = await db('sessions')
           .where('id', sessionId)
           .first();
-          
+
         games.push({
           sessionId,
           roomCode: session?.room_code,
@@ -579,7 +579,7 @@ router.get('/current-games', async (req, res) => {
         });
       }
     }
-    
+
     res.json({
       success: true,
       data: games

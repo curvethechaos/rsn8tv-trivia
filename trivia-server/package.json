@@ -67,6 +67,7 @@
     "@types/uuid": "^9.0.7",
     "@types/validator": "^13.11.7",
     "@types/ws": "^8.5.8",
+    "express-list-endpoints": "^7.1.1",
     "jest": "^29.7.0",
     "nodemon": "^3.0.1",
     "socket.io-client": "^4.8.1",

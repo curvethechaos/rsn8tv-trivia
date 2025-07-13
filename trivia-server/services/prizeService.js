@@ -7,6 +7,41 @@ class PrizeService {
     this.thresholdAmount = 8500; // Weekly threshold achievement
   }
 
+  //
+  // ======== CRUD methods for /api/admin/prizes ========
+  //
+
+  // List all prize configurations
+  async getAll() {
+    return await db('prize_configurations').select('*');
+  }
+
+  // Get one prize by ID
+  async getById(id) {
+    return await db('prize_configurations').where({ id }).first();
+  }
+
+  // Create a new prize configuration
+  async create(data) {
+    const [newPrize] = await db('prize_configurations').insert(data).returning('*');
+    return newPrize;
+  }
+
+  // Update an existing prize configuration
+  async update(id, data) {
+    const [updated] = await db('prize_configurations').where({ id }).update(data).returning('*');
+    return updated;
+  }
+
+  // Delete a prize configuration
+  async remove(id) {
+    return await db('prize_configurations').where({ id }).del();
+  }
+
+  //
+  // ======== Existing methods ========
+  //
+
   // Get time-based prize configurations
   async getTimeBasedPrizes() {
     const prizes = await db('prize_configurations')
@@ -216,7 +251,7 @@ class PrizeService {
   // Record prize claim
   async recordPrizeClaim(playerProfileId, prizeType, period) {
     const periodStart = await db.raw('SELECT get_period_start(CURRENT_DATE, ?) as start', [period]);
-    
+
     await db('prize_claims').insert({
       player_profile_id: playerProfileId,
       prize_type: prizeType,
@@ -260,7 +295,7 @@ class PrizeService {
         'time-based' as prize_type
       FROM leaderboards l
       JOIN player_profiles pp ON l.player_profile_id = pp.id
-      LEFT JOIN prize_claims pc ON 
+      LEFT JOIN prize_claims pc ON
         pc.player_profile_id = l.player_profile_id
         AND pc.period_type = l.period_type
         AND pc.period_start = l.period_start
@@ -283,7 +318,7 @@ class PrizeService {
         'threshold' as prize_type
       FROM leaderboards l
       JOIN player_profiles pp ON l.player_profile_id = pp.id
-      LEFT JOIN prize_claims pc ON 
+      LEFT JOIN prize_claims pc ON
         pc.player_profile_id = l.player_profile_id
         AND pc.period_type = 'weekly'
         AND pc.period_start = l.period_start

@@ -1,0 +1,1255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSN8TV Trivia - Admin Dashboard</title>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 RSN8TV Trivia Admin Dashboard</h1>
+    </div>
+
+    <nav class="tab-nav">
+        <button class="tab-button active" onclick="switchTab('monitoring')">Monitoring</button>
+        <button class="tab-button" onclick="switchTab('players')">Players</button>
+        <button class="tab-button" onclick="switchTab('leaderboards')">Leaderboards</button>
+        <button class="tab-button" onclick="switchTab('theme')">Theme Editor</button>
+        <button class="tab-button" onclick="switchTab('branding')">Branding</button>
+        <button class="tab-button" onclick="switchTab('questions')">Questions</button>
+        <button class="tab-button" onclick="switchTab('analytics')">Analytics</button>
+        <button class="tab-button" onclick="switchTab('venues')">Venues</button>
+        <button class="tab-button" onclick="switchTab('prizes')">Prizes</button>
+        <button class="tab-button" onclick="switchTab('schedule')">Schedule</button>
+        <button class="tab-button" onclick="switchTab('marketing')">Marketing</button>
+        <button class="tab-button" onclick="switchTab('api')">API</button>
+        <button class="tab-button" onclick="switchTab('settings')">Settings</button>
+    </nav>
+
+    <!-- Monitoring Tab -->
+    <div id="monitoring-tab" class="tab-content active">
+        <div class="card">
+            <h2>System Monitoring</h2>
+            
+            <div class="grid grid-4">
+                <div class="stat-card">
+                    <div class="stat-label">Active Games</div>
+                    <div class="stat-value" id="activeGames">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Online Players</div>
+                    <div class="stat-value" id="onlinePlayers">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Today's Games</div>
+                    <div class="stat-value" id="todaysGames">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Server Status</div>
+                    <div class="stat-value status-good">Operational</div>
+                </div>
+            </div>
+
+            <div class="grid grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h3>Recent Activity</h3>
+                    <div id="recentActivity">
+                        <!-- Recent activity will be loaded here -->
+                        <p>Loading recent activity...</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3>System Health</h3>
+                    <div id="systemHealth">
+                        <div style="margin: 10px 0;">
+                            <strong>API Response Time:</strong> <span class="status-good">45ms</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Database Connection:</strong> <span class="status-good">Active</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>WebSocket Status:</strong> <span class="status-good">Connected</span>
+                        </div>
+                        <div style="margin: 10px 0;">
+                            <strong>Cache Hit Rate:</strong> <span class="status-good">94%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Players Tab -->
+    <div id="players-tab" class="tab-content">
+        <div class="card">
+            <h2>Player Management</h2>
+
+            <div class="grid grid-4">
+                <div class="stat-card">
+                    <div class="stat-label">Total Players</div>
+                    <div class="stat-value" id="totalPlayersCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Registered Today</div>
+                    <div class="stat-value" id="registeredToday">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">With Email</div>
+                    <div class="stat-value" id="withEmail">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Marketing Consent</div>
+                    <div class="stat-value" id="marketingConsent">0</div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="playerSearch" placeholder="Search by name, email, or nickname...">
+                <select id="playerFilter">
+                    <option value="all">All Players</option>
+                    <option value="registered">Registered Only</option>
+                    <option value="marketing">Marketing Consent</option>
+                    <option value="prizeEligible">Prize Eligible</option>
+                </select>
+                <input type="date" id="dateFrom" placeholder="From Date">
+                <input type="date" id="dateTo" placeholder="To Date">
+                <button class="btn" onclick="searchPlayers()">Search</button>
+                <button class="btn btn-secondary" onclick="exportPlayers()">Export CSV</button>
+            </div>
+
+            <div class="table-container">
+                <table id="playersTable">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllPlayers"></th>
+                            <th>Nickname</th>
+                            <th>Real Name</th>
+                            <th>Email</th>
+                            <th>Games Played</th>
+                            <th>Total Score</th>
+                            <th>Registration Date</th>
+                            <th>Marketing</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="playersTableBody">
+                        <!-- Players will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="exportSelectedEmails()">Export Selected Emails</button>
+                <button class="btn btn-secondary" onclick="exportMarketingList()">Export Marketing List</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaderboards Tab -->
+    <div id="leaderboards-tab" class="tab-content">
+        <div class="card">
+            <h2>Leaderboard Management</h2>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Period</label>
+                    <select id="leaderboardPeriod" onchange="loadLeaderboard()">
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Limit</label>
+                    <input type="number" id="leaderboardLimit" value="50" min="10" max="100">
+                </div>
+                <div class="form-group">
+                    <label>&nbsp;</label>
+                    <button class="btn" onclick="loadLeaderboard()">Load Leaderboard</button>
+                </div>
+            </div>
+
+            <div class="alert alert-info">
+                <strong>Prize Thresholds:</strong>
+                Weekly: 1000 pts | Monthly: 1500 pts | Quarterly: 2000 pts | Yearly: 2500 pts
+            </div>
+
+            <div class="table-container">
+                <table id="leaderboardTable">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Player</th>
+                            <th>Email</th>
+                            <th>Total Score</th>
+                            <th>Games Played</th>
+                            <th>Average Score</th>
+                            <th>Prize Eligible</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboardTableBody">
+                        <!-- Leaderboard entries will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="exportLeaderboard()">Export Leaderboard</button>
+                <button class="btn btn-success" onclick="exportPrizeWinners()">Export Prize Winners</button>
+                <button class="btn" onclick="sendWinnerEmails()">Send Winner Notifications</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Editor Tab -->
+    <div id="theme-tab" class="tab-content">
+        <div class="grid grid-2">
+            <div class="card">
+                <h2>Color Scheme Editor</h2>
+
+                <h3>Primary Colors</h3>
+                <div class="color-picker-group">
+                    <label>Primary Color</label>
+                    <input type="color" id="primaryColor" value="#4dd0e1" onchange="updateTheme()">
+                    <span class="color-value">#4dd0e1</span>
+                </div>
+                <div class="color-picker-group">
+                    <label>Secondary Color</label>
+                    <input type="color" id="secondaryColor" value="#ffb84d" onchange="updateTheme()">
+                    <span class="color-value">#ffb84d</span>
+                </div>
+
+                <h3>Background Colors</h3>
+                <div class="color-picker-group">
+                    <label>Dark Background</label>
+                    <input type="color" id="bgDark" value="#1a1a2e" onchange="updateTheme()">
+                    <span class="color-value">#1a1a2e</span>
+                </div>
+                <div class="color-picker-group">
+                    <label>Card Background</label>
+                    <input type="color" id="bgCard" value="#16213e" onchange="updateTheme()">
+                    <span class="color-value">#16213e</span>
+                </div>
+
+                <h3>Text Colors</h3>
+                <div class="color-picker-group">
+                    <label>Primary Text</label>
+                    <input type="color" id="textPrimary" value="#eeeeee" onchange="updateTheme()">
+                    <span class="color-value">#eeeeee</span>
+                </div>
+                <div class="color-picker-group">
+                    <label>Secondary Text</label>
+                    <input type="color" id="textSecondary" value="#aaaaaa" onchange="updateTheme()">
+                    <span class="color-value">#aaaaaa</span>
+                </div>
+
+                <h3>Status Colors</h3>
+                <div class="color-picker-group">
+                    <label>Success Color</label>
+                    <input type="color" id="successColor" value="#4CAF50" onchange="updateTheme()">
+                    <span class="color-value">#4CAF50</span>
+                </div>
+                <div class="color-picker-group">
+                    <label>Error Color</label>
+                    <input type="color" id="errorColor" value="#f44336" onchange="updateTheme()">
+                    <span class="color-value">#f44336</span>
+                </div>
+
+                <div class="btn-group" style="margin-top: 20px;">
+                    <button class="btn" onclick="saveTheme()">Save Theme</button>
+                    <button class="btn btn-secondary" onclick="loadPreset('dark')">Dark Preset</button>
+                    <button class="btn btn-secondary" onclick="loadPreset('light')">Light Preset</button>
+                    <button class="btn btn-secondary" onclick="loadPreset('neon')">Neon Preset</button>
+                    <button class="btn btn-secondary" onclick="exportCSS()">Export CSS</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Live Preview</h2>
+                <div class="form-group">
+                    <label>Preview Mode</label>
+                    <select id="previewMode" onchange="updatePreview()">
+                        <option value="player">Player View</option>
+                        <option value="host">Host View</option>
+                    </select>
+                </div>
+                <iframe id="themePreview" class="preview-frame" src="/trivia/index.html"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branding Tab -->
+    <div id="branding-tab" class="tab-content">
+        <div class="grid grid-2">
+            <div class="card">
+                <h2>Logo Management</h2>
+
+                <div class="form-group">
+                    <label>RSN8TV Main Logo</label>
+                    <div class="upload-area" onclick="document.getElementById('mainLogo').click()">
+                        <input type="file" id="mainLogo" accept="image/*" style="display: none;" onchange="handleLogoUpload(this, 'main')">
+                        <p>Click or drag to upload logo</p>
+                        <small>Recommended: 300x100px, PNG with transparency</small>
+                    </div>
+                    <div id="mainLogoPreview" class="image-preview" style="display: none;">
+                        <img id="mainLogoImg" src="" alt="Main Logo">
+                        <button class="remove-btn" onclick="removeLogo('main')">×</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Favicon</label>
+                    <div class="upload-area" onclick="document.getElementById('favicon').click()">
+                        <input type="file" id="favicon" accept="image/*" style="display: none;" onchange="handleLogoUpload(this, 'favicon')">
+                        <p>Click or drag to upload favicon</p>
+                        <small>Recommended: 32x32px or 64x64px</small>
+                    </div>
+                    <div id="faviconPreview" class="image-preview" style="display: none;">
+                        <img id="faviconImg" src="" alt="Favicon">
+                        <button class="remove-btn" onclick="removeLogo('favicon')">×</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Sponsor Management</h2>
+
+                <div class="form-group">
+                    <label>Add Sponsor</label>
+                    <input type="text" id="sponsorName" placeholder="Sponsor Name">
+                    <div class="upload-area" style="margin-top: 10px;" onclick="document.getElementById('sponsorLogo').click()">
+                        <input type="file" id="sponsorLogo" accept="image/*" style="display: none;" onchange="handleSponsorUpload(this)">
+                        <p>Upload Sponsor Logo</p>
+                    </div>
+                    <button class="btn" style="margin-top: 10px;" onclick="addSponsor()">Add Sponsor</button>
+                </div>
+
+                <div id="sponsorsList">
+                    <!-- Sponsors will be listed here -->
+                </div>
+
+                <div class="form-group">
+                    <label>Sponsor Rotation</label>
+                    <select id="sponsorRotation">
+                        <option value="session">Per Session</option>
+                        <option value="round">Per Round</option>
+                        <option value="random">Random</option>
+                    </select>
+                </div>
+
+                <button class="btn" onclick="saveBranding()">Save All Branding</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Questions Tab -->
+    <div id="questions-tab" class="tab-content">
+        <div class="card">
+            <h2>Question Management</h2>
+
+            <div class="btn-group">
+                <button class="btn" onclick="showUploadQuestions()">Upload Question Set</button>
+                <button class="btn btn-secondary" onclick="downloadTemplate()">Download CSV Template</button>
+                <button class="btn btn-secondary" onclick="exportQuestions()">Export All Questions</button>
+            </div>
+
+            <div class="grid grid-3" style="margin-top: 20px;">
+                <div class="stat-card">
+                    <div class="stat-label">Total Questions</div>
+                    <div class="stat-value" id="totalQuestions">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Flagged Questions</div>
+                    <div class="stat-value" id="flaggedQuestions">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Custom Questions</div>
+                    <div class="stat-value" id="customQuestions">0</div>
+                </div>
+            </div>
+
+            <div class="search-bar">
+                <input type="text" id="questionSearch" placeholder="Search questions...">
+                <select id="questionDifficulty">
+                    <option value="">All Difficulties</option>
+                    <option value="easy">Easy</option>
+                    <option value="medium">Medium</option>
+                    <option value="hard">Hard</option>
+                </select>
+                <select id="questionCategory">
+                    <option value="">All Categories</option>
+                    <!-- Categories will be loaded here -->
+                </select>
+                <button class="btn" onclick="searchQuestions()">Search</button>
+            </div>
+
+            <div class="table-container">
+                <table id="questionsTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Question</th>
+                            <th>Category</th>
+                            <th>Difficulty</th>
+                            <th>Times Used</th>
+                            <th>Success Rate</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="questionsTableBody">
+                        <!-- Questions will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="analytics-tab" class="tab-content">
+        <div class="card">
+            <h2>Game Analytics</h2>
+
+            <div class="grid grid-4">
+                <div class="stat-card">
+                    <div class="stat-label">Games Today</div>
+                    <div class="stat-value" id="gamesToday">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Players Today</div>
+                    <div class="stat-value" id="playersTodayAnalytics">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Avg Session Time</div>
+                    <div class="stat-value" id="avgSessionTime">0m</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Conversion Rate</div>
+                    <div class="stat-value" id="conversionRate">0%</div>
+                </div>
+            </div>
+
+            <div class="grid grid-2" style="margin-top: 20px;">
+                <div class="card">
+                    <h3>Player Retention</h3>
+                    <canvas id="retentionChart"></canvas>
+                </div>
+                <div class="card">
+                    <h3>Popular Answer Times</h3>
+                    <canvas id="answerTimeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Device & Browser Stats</h3>
+                <div class="grid grid-2">
+                    <canvas id="deviceChart"></canvas>
+                    <canvas id="browserChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Venues Tab -->
+    <div id="venues-tab" class="tab-content">
+        <div class="card">
+            <h2>Venue Management</h2>
+
+            <button class="btn" onclick="showAddVenue()">Add New Venue</button>
+
+            <div class="grid grid-3" style="margin-top: 20px;">
+                <!-- Venue cards will be loaded here -->
+                <div class="card">
+                    <h3>The Sports Bar</h3>
+                    <div class="stat-card">
+                        <div class="stat-label">Games This Week</div>
+                        <div class="stat-value">45</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg Players</div>
+                        <div class="stat-value">12</div>
+                    </div>
+                    <button class="btn btn-secondary">View Details</button>
+                    <button class="btn">Edit Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prizes Tab -->
+    <div id="prizes-tab" class="tab-content">
+        <div class="card">
+            <h2>Prize Management</h2>
+
+            <div class="grid grid-2">
+                <div>
+                    <h3>Current Prizes</h3>
+                    <div class="form-group">
+                        <label>Weekly Prize</label>
+                        <input type="text" id="weeklyPrize" placeholder="$50 Gift Card">
+                    </div>
+                    <div class="form-group">
+                        <label>Monthly Prize</label>
+                        <input type="text" id="monthlyPrize" placeholder="$200 Gift Card">
+                    </div>
+                    <div class="form-group">
+                        <label>Quarterly Prize</label>
+                        <input type="text" id="quarterlyPrize" placeholder="Gaming Console">
+                    </div>
+                    <div class="form-group">
+                        <label>Yearly Grand Prize</label>
+                        <input type="text" id="yearlyPrize" placeholder="$1000 Cash">
+                    </div>
+                    <button class="btn" onclick="savePrizes()">Update Prizes</button>
+                </div>
+
+                <div>
+                    <h3>Prize Winners</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Period</th>
+                                    <th>Winner</th>
+                                    <th>Score</th>
+                                    <th>Prize</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="prizeWinnersBody">
+                                <!-- Winners will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3>Prize Inventory</h3>
+                <button class="btn" onclick="addPrizeItem()">Add Prize Item</button>
+                <div id="prizeInventory" style="margin-top: 20px;">
+                    <!-- Prize inventory will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule Tab -->
+    <div id="schedule-tab" class="tab-content">
+        <div class="card">
+            <h2>Game Schedule</h2>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Venue</label>
+                    <select id="scheduleVenue">
+                        <option value="">All Venues</option>
+                        <!-- Venues will be loaded here -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="scheduleDate">
+                </div>
+                <div class="form-group">
+                    <label>Time</label>
+                    <input type="time" id="scheduleTime">
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select id="scheduleType">
+                        <option value="regular">Regular Game</option>
+                        <option value="tournament">Tournament</option>
+                        <option value="special">Special Event</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn" onclick="scheduleGame()">Schedule Game</button>
+
+            <div class="card" style="margin-top: 20px;">
+                <h3>Upcoming Games</h3>
+                <div id="upcomingGames">
+                    <!-- Scheduled games will be listed here -->
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Peak Time Analysis</h3>
+                <canvas id="peakTimeChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Marketing Tab -->
+    <div id="marketing-tab" class="tab-content">
+        <div class="card">
+            <h2>Email Campaigns</h2>
+
+            <div class="grid grid-2">
+                <div>
+                    <h3>Create Campaign</h3>
+                    <div class="form-group">
+                        <label>Campaign Name</label>
+                        <input type="text" id="campaignName" placeholder="Weekend Trivia Special">
+                    </div>
+                    <div class="form-group">
+                        <label>Subject Line</label>
+                        <input type="text" id="campaignSubject" placeholder="Join us for trivia this weekend!">
+                    </div>
+                    <div class="form-group">
+                        <label>Target Audience</label>
+                        <select id="campaignAudience">
+                            <option value="all">All Players with Marketing Consent</option>
+                            <option value="active">Active Players (Last 30 days)</option>
+                            <option value="inactive">Inactive Players</option>
+                            <option value="winners">Previous Winners</option>
+                            <option value="highscorers">High Scorers</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Content</label>
+                        <textarea id="campaignContent" rows="10" placeholder="Email content..."></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn" onclick="sendTestEmail()">Send Test</button>
+                        <button class="btn btn-success" onclick="scheduleCampaign()">Schedule Campaign</button>
+                    </div>
+                </div>
+
+                <div>
+                    <h3>Campaign Analytics</h3>
+                    <div class="stat-card">
+                        <div class="stat-label">Open Rate</div>
+                        <div class="stat-value">24.5%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Click Rate</div>
+                        <div class="stat-value">12.3%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Conversion Rate</div>
+                        <div class="stat-value">8.7%</div>
+                    </div>
+
+                    <h4 style="margin-top: 20px;">Recent Campaigns</h4>
+                    <div id="recentCampaigns">
+                        <!-- Recent campaigns will be listed here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Tab -->
+    <div id="api-tab" class="tab-content">
+        <div class="card">
+            <h2>API Configuration</h2>
+
+            <div class="grid grid-2">
+                <div>
+                    <h3>API Keys</h3>
+                    <button class="btn" onclick="generateAPIKey()">Generate New API Key</button>
+
+                    <div class="table-container" style="margin-top: 20px;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Key</th>
+                                    <th>Name</th>
+                                    <th>Created</th>
+                                    <th>Last Used</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="apiKeysBody">
+                                <!-- API keys will be listed here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div>
+                    <h3>Webhook Configuration</h3>
+                    <div class="form-group">
+                        <label>Game Complete Webhook</label>
+                        <input type="text" id="gameCompleteWebhook" placeholder="https://your-server.com/webhook/game-complete">
+                    </div>
+                    <div class="form-group">
+                        <label>New Registration Webhook</label>
+                        <input type="text" id="registrationWebhook" placeholder="https://your-server.com/webhook/registration">
+                    </div>
+                    <div class="form-group">
+                        <label>Prize Winner Webhook</label>
+                        <input type="text" id="prizeWebhook" placeholder="https://your-server.com/webhook/prize-winner">
+                    </div>
+                    <button class="btn" onclick="saveWebhooks()">Save Webhooks</button>
+
+                    <h4 style="margin-top: 20px;">API Usage Stats</h4>
+                    <canvas id="apiUsageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div id="settings-tab" class="tab-content">
+        <div class="card">
+            <h2>System Settings</h2>
+
+            <div class="grid grid-2">
+                <div>
+                    <h3>Game Configuration</h3>
+                    <div class="form-group">
+                        <label>Questions Per Game</label>
+                        <input type="number" id="questionsPerGame" value="10" min="5" max="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Answer Time (seconds)</label>
+                        <input type="number" id="answerTime" value="18" min="10" max="30">
+                    </div>
+                    <div class="form-group">
+                        <label>Enable Answer Fading</label>
+                        <select id="answerFading">
+                            <option value="true">Enabled</option>
+                            <option value="false">Disabled</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Max Players Per Session</label>
+                        <input type="number" id="maxPlayers" value="50" min="10" max="200">
+                    </div>
+                </div>
+
+                <div>
+                    <h3>System Configuration</h3>
+                    <div class="form-group">
+                        <label>Database Backup</label>
+                        <button class="btn" onclick="backupDatabase()">Backup Now</button>
+                        <small style="display: block; margin-top: 5px;">Last backup: 2 hours ago</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Cache Settings</label>
+                        <button class="btn btn-secondary" onclick="clearCache()">Clear Cache</button>
+                    </div>
+                    <div class="form-group">
+                        <label>Maintenance Mode</label>
+                        <select id="maintenanceMode">
+                            <option value="false">Disabled</option>
+                            <option value="true">Enabled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn btn-success" onclick="saveSettings()">Save All Settings</button>
+                <button class="btn btn-secondary" onclick="resetDefaults()">Reset to Defaults</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.add('active');
+
+            // Mark button as active
+            event.target.classList.add('active');
+
+            // Load tab-specific data
+            loadTabData(tabName);
+        }
+
+        // Load data for specific tab
+        function loadTabData(tabName) {
+            switch(tabName) {
+                case 'monitoring':
+                    loadMonitoringData();
+                    break;
+                case 'players':
+                    loadPlayers();
+                    break;
+                case 'leaderboards':
+                    loadLeaderboard();
+                    break;
+                case 'questions':
+                    loadQuestions();
+                    break;
+                case 'analytics':
+                    loadAnalytics();
+                    break;
+                case 'venues':
+                    loadVenues();
+                    break;
+                case 'prizes':
+                    loadPrizes();
+                    break;
+                case 'schedule':
+                    loadSchedule();
+                    break;
+                case 'marketing':
+                    loadCampaigns();
+                    break;
+                case 'api':
+                    loadAPIData();
+                    break;
+                case 'settings':
+                    loadSettings();
+                    break;
+            }
+        }
+
+        // Monitoring Tab Functions
+        async function loadMonitoringData() {
+            try {
+                const response = await fetch('/api/admin/stats');
+                const data = await response.json();
+
+                // Update monitoring stats
+                document.getElementById('activeGames').textContent = data.stats?.games?.active || 0;
+                document.getElementById('onlinePlayers').textContent = data.stats?.players?.online || 0;
+                document.getElementById('todaysGames').textContent = data.stats?.games?.today || 0;
+
+                // Load recent activity
+                const activityHtml = data.recentActivity?.map(activity => 
+                    `<div style="margin: 5px 0;">${activity.timestamp}: ${activity.action}</div>`
+                ).join('') || '<p>No recent activity</p>';
+                
+                document.getElementById('recentActivity').innerHTML = activityHtml;
+            } catch (error) {
+                console.error('Error loading monitoring data:', error);
+            }
+        }
+
+        // Players Tab Functions
+        async function loadPlayers() {
+            try {
+                const response = await fetch('/api/admin/players');
+                const data = await response.json();
+
+                // Update stats
+                document.getElementById('totalPlayersCount').textContent = data.stats.total;
+                document.getElementById('registeredToday').textContent = data.stats.registeredToday;
+                document.getElementById('withEmail').textContent = data.stats.withEmail;
+                document.getElementById('marketingConsent').textContent = data.stats.marketingConsent;
+
+                // Populate table
+                const tbody = document.getElementById('playersTableBody');
+                tbody.innerHTML = data.players.map(player => `
+                    <tr>
+                        <td><input type="checkbox" class="player-checkbox" value="${player.id}"></td>
+                        <td>${player.nickname}</td>
+                        <td>${player.real_name || '-'}</td>
+                        <td>${player.email || '-'}</td>
+                        <td>${player.games_played}</td>
+                        <td>${player.total_score}</td>
+                        <td>${player.registration_date ? new Date(player.registration_date).toLocaleDateString() : '-'}</td>
+                        <td><span class="badge ${player.marketing_consent ? 'badge-success' : 'badge-error'}">${player.marketing_consent ? 'Yes' : 'No'}</span></td>
+                        <td>
+                            <button class="btn btn-secondary" onclick="viewPlayer(${player.id})">View</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading players:', error);
+            }
+        }
+
+        async function searchPlayers() {
+            const search = document.getElementById('playerSearch').value;
+            const filter = document.getElementById('playerFilter').value;
+            const dateFrom = document.getElementById('dateFrom').value;
+            const dateTo = document.getElementById('dateTo').value;
+
+            const params = new URLSearchParams({
+                search,
+                filter,
+                dateFrom,
+                dateTo
+            });
+
+            try {
+                const response = await fetch(`/api/admin/players?${params}`);
+                const data = await response.json();
+                // Update table with filtered results
+                // ... similar to loadPlayers
+            } catch (error) {
+                console.error('Error searching players:', error);
+            }
+        }
+
+        async function exportPlayers() {
+            const response = await fetch('/api/admin/players/export');
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `players_${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        // Leaderboard Functions
+        async function loadLeaderboard() {
+            const period = document.getElementById('leaderboardPeriod').value;
+            const limit = document.getElementById('leaderboardLimit').value;
+
+            try {
+                const response = await fetch(`/api/leaderboards?period=${period}&limit=${limit}`);
+                const data = await response.json();
+
+                const tbody = document.getElementById('leaderboardTableBody');
+                tbody.innerHTML = data.map((entry, index) => {
+                    const prizeEligible = checkPrizeEligibility(entry.total_score, period);
+                    return `
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${entry.nickname}</td>
+                            <td>${entry.email || '-'}</td>
+                            <td>${entry.total_score}</td>
+                            <td>${entry.games_played}</td>
+                            <td>${Math.round(entry.average_score)}</td>
+                            <td><span class="badge ${prizeEligible ? 'badge-success' : 'badge-warning'}">${prizeEligible ? 'Yes' : 'No'}</span></td>
+                            <td>
+                                <button class="btn btn-secondary" onclick="contactWinner(${entry.player_profile_id})">Contact</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Error loading leaderboard:', error);
+            }
+        }
+
+        function checkPrizeEligibility(score, period) {
+            const thresholds = {
+                weekly: 1000,
+                monthly: 1500,
+                quarterly: 2000,
+                yearly: 2500
+            };
+            return score >= thresholds[period];
+        }
+
+        // Theme Editor Functions
+        function updateTheme() {
+            // Get all color values
+            const colors = {
+                primary: document.getElementById('primaryColor').value,
+                secondary: document.getElementById('secondaryColor').value,
+                bgDark: document.getElementById('bgDark').value,
+                bgCard: document.getElementById('bgCard').value,
+                textPrimary: document.getElementById('textPrimary').value,
+                textSecondary: document.getElementById('textSecondary').value,
+                success: document.getElementById('successColor').value,
+                error: document.getElementById('errorColor').value
+            };
+
+            // Update color value displays
+            document.querySelectorAll('.color-picker-group').forEach(group => {
+                const input = group.querySelector('input[type="color"]');
+                const valueSpan = group.querySelector('.color-value');
+                if (input && valueSpan) {
+                    valueSpan.textContent = input.value;
+                }
+            });
+
+            // Update preview iframe
+            const preview = document.getElementById('themePreview');
+            if (preview && preview.contentWindow) {
+                preview.contentWindow.postMessage({
+                    type: 'updateTheme',
+                    colors: colors
+                }, '*');
+            }
+        }
+
+        function loadPreset(presetName) {
+            const presets = {
+                dark: {
+                    primary: '#4dd0e1',
+                    secondary: '#ffb84d',
+                    bgDark: '#1a1a2e',
+                    bgCard: '#16213e',
+                    textPrimary: '#eeeeee',
+                    textSecondary: '#aaaaaa',
+                    success: '#4CAF50',
+                    error: '#f44336'
+                },
+                light: {
+                    primary: '#2196F3',
+                    secondary: '#FF9800',
+                    bgDark: '#f5f5f5',
+                    bgCard: '#ffffff',
+                    textPrimary: '#212121',
+                    textSecondary: '#757575',
+                    success: '#4CAF50',
+                    error: '#f44336'
+                },
+                neon: {
+                    primary: '#00ff00',
+                    secondary: '#ff00ff',
+                    bgDark: '#000000',
+                    bgCard: '#111111',
+                    textPrimary: '#ffffff',
+                    textSecondary: '#cccccc',
+                    success: '#00ff00',
+                    error: '#ff0000'
+                }
+            };
+
+            const preset = presets[presetName];
+            if (preset) {
+                Object.keys(preset).forEach(key => {
+                    const input = document.getElementById(key + 'Color') || document.getElementById(key);
+                    if (input) {
+                        input.value = preset[key];
+                    }
+                });
+                updateTheme();
+            }
+        }
+
+        async function saveTheme() {
+            const colors = {
+                primary: document.getElementById('primaryColor').value,
+                secondary: document.getElementById('secondaryColor').value,
+                bgDark: document.getElementById('bgDark').value,
+                bgCard: document.getElementById('bgCard').value,
+                textPrimary: document.getElementById('textPrimary').value,
+                textSecondary: document.getElementById('textSecondary').value,
+                success: document.getElementById('successColor').value,
+                error: document.getElementById('errorColor').value
+            };
+
+            try {
+                const response = await fetch('/api/admin/theme', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ colors })
+                });
+
+                if (response.ok) {
+                    alert('Theme saved successfully!');
+                } else {
+                    alert('Error saving theme');
+                }
+            } catch (error) {
+                console.error('Error saving theme:', error);
+                alert('Error saving theme');
+            }
+        }
+
+        function exportCSS() {
+            const colors = {
+                primary: document.getElementById('primaryColor').value,
+                secondary: document.getElementById('secondaryColor').value,
+                bgDark: document.getElementById('bgDark').value,
+                bgCard: document.getElementById('bgCard').value,
+                textPrimary: document.getElementById('textPrimary').value,
+                textSecondary: document.getElementById('textSecondary').value,
+                success: document.getElementById('successColor').value,
+                error: document.getElementById('errorColor').value
+            };
+
+            const css = `:root {
+    --primary-color: ${colors.primary};
+    --secondary-color: ${colors.secondary};
+    --bg-dark: ${colors.bgDark};
+    --bg-card: ${colors.bgCard};
+    --text-primary: ${colors.textPrimary};
+    --text-secondary: ${colors.textSecondary};
+    --success: ${colors.success};
+    --error: ${colors.error};
+}`;
+
+            const blob = new Blob([css], { type: 'text/css' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'trivia-theme.css';
+            a.click();
+        }
+
+        // Branding Functions
+        function handleLogoUpload(input, type) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const previewDiv = document.getElementById(type + 'LogoPreview' + (type === 'main' ? '' : type === 'favicon' ? '' : ''));
+                    const previewImg = document.getElementById(type + 'LogoImg' + (type === 'main' ? '' : type === 'favicon' ? '' : ''));
+
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewDiv.style.display = 'inline-block';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeLogo(type) {
+            const previewDiv = document.getElementById(type + 'LogoPreview');
+            const input = document.getElementById(type === 'main' ? 'mainLogo' : 'favicon');
+
+            if (previewDiv) previewDiv.style.display = 'none';
+            if (input) input.value = '';
+        }
+
+        function handleSponsorUpload(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Store the uploaded sponsor logo data
+                    window.uploadedSponsorLogo = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function addSponsor() {
+            const name = document.getElementById('sponsorName').value;
+            const logo = window.uploadedSponsorLogo;
+
+            if (!name || !logo) {
+                alert('Please enter sponsor name and upload logo');
+                return;
+            }
+
+            // Add sponsor to list
+            const sponsorsList = document.getElementById('sponsorsList');
+            const sponsorDiv = document.createElement('div');
+            sponsorDiv.className = 'sponsor-item';
+            sponsorDiv.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 15px; margin: 10px 0; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <img src="${logo}" style="width: 60px; height: 60px; object-fit: contain;">
+                    <div style="flex: 1;">
+                        <strong>${name}</strong>
+                    </div>
+                    <button class="btn btn-danger" onclick="this.parentElement.remove()">Remove</button>
+                </div>
+            `;
+            sponsorsList.appendChild(sponsorDiv);
+
+            // Reset form
+            document.getElementById('sponsorName').value = '';
+            document.getElementById('sponsorLogo').value = '';
+            window.uploadedSponsorLogo = null;
+        }
+
+        async function saveBranding() {
+            // Collect all branding data
+            const brandingData = {
+                mainLogo: document.getElementById('mainLogoImg').src || null,
+                favicon: document.getElementById('faviconImg').src || null,
+                sponsors: [],
+                sponsorRotation: document.getElementById('sponsorRotation').value
+            };
+
+            // Collect sponsors
+            document.querySelectorAll('.sponsor-item').forEach(item => {
+                const img = item.querySelector('img');
+                const name = item.querySelector('strong').textContent;
+                brandingData.sponsors.push({
+                    name: name,
+                    logo: img.src
+                });
+            });
+
+            try {
+                const response = await fetch('/api/admin/branding', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(brandingData)
+                });
+
+                if (response.ok) {
+                    alert('Branding saved successfully!');
+                } else {
+                    alert('Error saving branding');
+                }
+            } catch (error) {
+                console.error('Error saving branding:', error);
+                alert('Error saving branding');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial data
+            loadTabData('monitoring');
+
+            // Set up drag and drop for upload areas
+            document.querySelectorAll('.upload-area').forEach(area => {
+                area.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    area.classList.add('dragging');
+                });
+
+                area.addEventListener('dragleave', () => {
+                    area.classList.remove('dragging');
+                });
+
+                area.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    area.classList.remove('dragging');
+                    const input = area.querySelector('input[type="file"]');
+                    if (input && e.dataTransfer.files.length > 0) {
+                        input.files = e.dataTransfer.files;
+                        input.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        });
+
+        // Placeholder functions for other tabs
+        async function loadQuestions() {
+            console.log('Loading questions...');
+        }
+
+        async function loadAnalytics() {
+            console.log('Loading analytics...');
+        }
+
+        async function loadVenues() {
+            console.log('Loading venues...');
+        }
+
+        async function loadPrizes() {
+            console.log('Loading prizes...');
+        }
+
+        async function loadSchedule() {
+            console.log('Loading schedule...');
+        }
+
+        async function loadCampaigns() {
+            console.log('Loading campaigns...');
+        }
+
+        async function loadAPIData() {
+            console.log('Loading API data...');
+        }
+
+        async function loadSettings() {
+            console.log('Loading settings...');
+        }
+    </script>
+</body>
+</html>

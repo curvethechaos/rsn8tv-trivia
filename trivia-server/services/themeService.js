@@ -25,6 +25,41 @@ class ThemeService {
     };
   }
 
+  //
+  // ======== CRUD methods for /api/admin/themes ========
+  //
+
+  // List all themes
+  async getAll() {
+    return await db('themes').select('*');
+  }
+
+  // Get one theme by ID
+  async getById(id) {
+    return await db('themes').where({ id }).first();
+  }
+
+  // Create a new theme
+  async create(data) {
+    const [newTheme] = await db('themes').insert(data).returning('*');
+    return newTheme;
+  }
+
+  // Update an existing theme
+  async update(id, data) {
+    const [updated] = await db('themes').where({ id }).update(data).returning('*');
+    return updated;
+  }
+
+  // Delete a theme
+  async remove(id) {
+    return await db('themes').where({ id }).del();
+  }
+
+  //
+  // ======== Existing methods ========
+  //
+
   // Get current theme
   async getCurrentTheme() {
     const theme = await db('themes')
@@ -109,7 +144,7 @@ class ThemeService {
     // Activate selected theme
     const [theme] = await db('themes')
       .where('id', themeId)
-      .update({ 
+      .update({
         is_active: true,
         updated_at: new Date()
       })
@@ -174,11 +209,11 @@ class ThemeService {
   --text-secondary: ${colors.textSecondary};
   --success: ${colors.success};
   --error: ${colors.error};
-  
+
   /* Fonts */
   --font-heading: '${fonts.heading}', sans-serif;
   --font-body: '${fonts.body}', sans-serif;
-  
+
   /* Animations */
   --animation-duration: ${animations.duration};
   --animation-easing: ${animations.easing};
@@ -224,7 +259,6 @@ h1, h2, h3, h4, h5, h6 {
   transition-duration: var(--animation-duration);
   transition-timing-function: var(--animation-easing);
 }`;
-
     return css;
   }
 }
