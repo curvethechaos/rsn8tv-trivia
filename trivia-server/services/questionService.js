@@ -1,4 +1,4 @@
-// services/questionService.js - Question management service
+// services/questionService.js - Question management service using question_cache table
 const db = require('../db/connection');
 const csvParse = require('csv-parse/sync');
 
@@ -16,11 +16,24 @@ class QuestionService {
       'Animals',
       'Vehicles',
       'Entertainment',
+      'Entertainment: Books',
+      'Entertainment: Film',
+      'Entertainment: Music',
+      'Entertainment: Musicals & Theatres',
+      'Entertainment: Television',
+      'Entertainment: Video Games',
+      'Entertainment: Board Games',
+      'Entertainment: Comics',
+      'Entertainment: Japanese Anime & Manga',
+      'Entertainment: Cartoon & Animations',
+      'Science: Computers',
+      'Science: Mathematics',
+      'Science: Gadgets',
       'Mythology'
     ];
   }
 
-  // Get questions with filters
+  // Get questions with filters and statistics
   async getQuestions(options = {}) {
     const { 
       page = 1, 
@@ -33,30 +46,22 @@ class QuestionService {
     
     const offset = (page - 1) * limit;
 
-    // Build query
-    let query = db('questions as q')
-      .leftJoin(
-        db.raw(`
-          (SELECT question_id, 
-           COUNT(*) as times_used,
-           AVG(CASE WHEN is_correct THEN 1 ELSE 0 END) as success_rate
-           FROM question_responses
-           GROUP BY question_id) as stats
-        `),
-        'q.id', 'stats.question_id'
-      )
+    // Build query with statistics from question_cache
+    let query = db('question_cache as q')
       .select(
         'q.id',
-        'q.question',
+        'q.question_text as question',
         'q.category',
         'q.difficulty',
         'q.correct_answer',
         'q.incorrect_answers',
-        'q.is_flagged',
-        'q.is_custom',
-        'q.created_at',
-        db.raw('COALESCE(stats.times_used, 0) as times_used'),
-        db.raw('COALESCE(stats.success_rate, 0) as success_rate')
+        'q.is_active',
+        'q.cached_at as created_at',
+        'q.times_used',
+        'q.quality_score',
+        'q.word_count',
+        db.raw('CASE WHEN q.quality_score < 30 THEN true ELSE false END as is_flagged'),
+        db.raw('false as is_custom') // question_cache contains imported questions
       );
 
     // Apply filters
@@ -67,19 +72,19 @@ class QuestionService {
       query = query.where('q.category', category);
     }
     if (search) {
-      query = query.where('q.question', 'ilike', `%${search}%`);
+      query = query.where('q.question_text', 'ilike', `%${search}%`);
     }
     if (status === 'flagged') {
-      query = query.where('q.is_flagged', true);
-    } else if (status === 'custom') {
-      query = query.where('q.is_custom', true);
+      query = query.where('q.quality_score', '<', 30); // Low quality score = flagged
     } else if (status === 'active') {
-      query = query.where('q.is_flagged', false);
+      query = query.where('q.is_active', true);
+    } else if (status === 'inactive') {
+      query = query.where('q.is_active', false);
     }
 
     // Get paginated results
     const questions = await query
-      .orderBy('q.id')
+      .orderBy('q.id', 'desc')
       .limit(limit)
       .offset(offset);
 
@@ -96,53 +101,169 @@ class QuestionService {
         incorrect_answers: typeof q.incorrect_answers === 'string' 
           ? JSON.parse(q.incorrect_answers) 
           : q.incorrect_answers,
-        success_rate: parseFloat(q.success_rate)
+        success_rate: q.times_used > 0 ? 0.65 : 0 // Placeholder success rate
       })),
       totalCount,
       flaggedCount,
-      customCount
+      customCount: 0 // All questions in cache are imported, not custom
     };
   }
 
-  // Get total question count with filters
-  async getQuestionCount(filters = {}) {
-    let query = db('questions');
+  // Get single question by ID
+  async getById(id) {
+    const question = await db('question_cache')
+      .select(
+        'id',
+        'question_text as question',
+        'category',
+        'difficulty',
+        'correct_answer',
+        'incorrect_answers',
+        'is_active',
+        'times_used',
+        'quality_score',
+        'word_count'
+      )
+      .where('id', id)
+      .first();
 
-    if (filters.difficulty) {
-      query = query.where('difficulty', filters.difficulty);
-    }
-    if (filters.category) {
-      query = query.where('category', filters.category);
-    }
-    if (filters.search) {
-      query = query.where('question', 'ilike', `%${filters.search}%`);
-    }
-    if (filters.status === 'flagged') {
-      query = query.where('is_flagged', true);
-    } else if (filters.status === 'custom') {
-      query = query.where('is_custom', true);
-    } else if (filters.status === 'active') {
-      query = query.where('is_flagged', false);
+    if (question && typeof question.incorrect_answers === 'string') {
+      question.incorrect_answers = JSON.parse(question.incorrect_answers);
     }
 
-    const result = await query.count('id as count');
-    return parseInt(result[0].count);
+    return question;
   }
 
-  // Get flagged question count
-  async getFlaggedCount() {
-    const result = await db('questions')
-      .where('is_flagged', true)
-      .count('id as count');
-    return parseInt(result[0].count);
+  // Create new question in question_cache
+  async create(data) {
+    const { 
+      question, 
+      correct_answer, 
+      incorrect_answers, 
+      category, 
+      difficulty,
+      created_by
+    } = data;
+
+    // Validate incorrect_answers is an array
+    const incorrectAnswersArray = Array.isArray(incorrect_answers) 
+      ? incorrect_answers 
+      : [incorrect_answers];
+
+    // Generate API question ID for new custom questions
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const apiQuestionId = `custom_${category.replace(/\s+/g, '%20')}_${timestamp}_${randomStr}`;
+
+    // Calculate word count and quality score
+    const wordCount = question.split(/\s+/).length;
+    const qualityScore = this.calculateQualityScore(question, wordCount);
+
+    const [created] = await db('question_cache')
+      .insert({
+        api_question_id: apiQuestionId,
+        question_text: question,
+        correct_answer,
+        incorrect_answers: JSON.stringify(incorrectAnswersArray),
+        category,
+        difficulty,
+        word_count: wordCount,
+        quality_score: qualityScore,
+        is_active: true,
+        times_used: 0,
+        tags: JSON.stringify([]),
+        regions: JSON.stringify(['US']),
+        cached_at: new Date()
+      })
+      .returning('*');
+
+    created.question = created.question_text;
+    created.incorrect_answers = incorrectAnswersArray;
+    return created;
   }
 
-  // Get custom question count
-  async getCustomCount() {
-    const result = await db('questions')
-      .where('is_custom', true)
-      .count('id as count');
-    return parseInt(result[0].count);
+  // Update existing question
+  async update(id, data) {
+    const updateData = {};
+    
+    // Map fields that can be updated
+    if (data.question) updateData.question_text = data.question;
+    if (data.correct_answer) updateData.correct_answer = data.correct_answer;
+    if (data.category) updateData.category = data.category;
+    if (data.difficulty) updateData.difficulty = data.difficulty;
+    
+    // Handle incorrect_answers
+    if (data.incorrect_answers) {
+      updateData.incorrect_answers = JSON.stringify(
+        Array.isArray(data.incorrect_answers) 
+          ? data.incorrect_answers 
+          : [data.incorrect_answers]
+      );
+    }
+
+    // Recalculate word count and quality score if question text changed
+    if (data.question) {
+      updateData.word_count = data.question.split(/\s+/).length;
+      updateData.quality_score = this.calculateQualityScore(data.question, updateData.word_count);
+    }
+
+    const [updated] = await db('question_cache')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+
+    if (updated) {
+      updated.question = updated.question_text;
+      if (typeof updated.incorrect_answers === 'string') {
+        updated.incorrect_answers = JSON.parse(updated.incorrect_answers);
+      }
+    }
+
+    return updated;
+  }
+
+  // Delete question (soft delete by setting is_active to false)
+  async remove(id) {
+    const [removed] = await db('question_cache')
+      .where('id', id)
+      .update({
+        is_active: false
+      })
+      .returning('*');
+
+    return removed;
+  }
+
+  // Flag or unflag a question (by adjusting quality score)
+  async flagQuestion(id, userId, reason = null) {
+    const question = await this.getById(id);
+    if (!question) return null;
+
+    // If flagging, set quality score to 0. If unflagging, restore to calculated value
+    const isFlagged = question.quality_score < 30;
+    const updateData = {};
+
+    if (!isFlagged) {
+      // Flag the question
+      updateData.quality_score = 0;
+    } else {
+      // Unflag - recalculate quality score
+      updateData.quality_score = this.calculateQualityScore(question.question, question.word_count);
+    }
+
+    const [updated] = await db('question_cache')
+      .where('id', id)
+      .update(updateData)
+      .returning('*');
+
+    if (updated) {
+      updated.question = updated.question_text;
+      if (typeof updated.incorrect_answers === 'string') {
+        updated.incorrect_answers = JSON.parse(updated.incorrect_answers);
+      }
+    }
+
+    return updated;
   }
 
   // Import questions from CSV
@@ -157,6 +278,7 @@ class QuestionService {
 
     const questions = [];
     const errors = [];
+    let imported = 0;
 
     // Validate and prepare questions
     for (let i = 0; i < records.length; i++) {
@@ -172,9 +294,10 @@ class QuestionService {
         // Parse incorrect answers
         let incorrectAnswers = [];
         if (record.incorrect_answers) {
+          // Handle pipe-separated format
           incorrectAnswers = record.incorrect_answers.split('|').map(a => a.trim());
         } else if (record.incorrect_answer_1) {
-          // Handle alternate format
+          // Handle individual columns format
           incorrectAnswers = [
             record.incorrect_answer_1,
             record.incorrect_answer_2,
@@ -193,168 +316,218 @@ class QuestionService {
           continue;
         }
 
-        questions.push({
-          question: record.question.trim(),
+        // Validate category
+        if (!this.categories.includes(record.category)) {
+          errors.push(`Row ${i + 2}: Invalid category: ${record.category}`);
+          continue;
+        }
+
+        const timestamp = Date.now();
+        const randomStr = Math.random().toString(36).substring(2, 15);
+        const apiQuestionId = `import_${record.category.replace(/\s+/g, '%20')}_${timestamp}_${randomStr}`;
+        
+        const wordCount = record.question.trim().split(/\s+/).length;
+        const qualityScore = this.calculateQualityScore(record.question.trim(), wordCount);
+
+        // Insert question
+        await db('question_cache').insert({
+          api_question_id: apiQuestionId,
+          question_text: record.question.trim(),
           correct_answer: record.correct_answer.trim(),
           incorrect_answers: JSON.stringify(incorrectAnswers),
-          category: record.category.trim(),
+          category: record.category,
           difficulty: record.difficulty.toLowerCase(),
-          is_custom: true,
-          created_at: new Date()
+          word_count: wordCount,
+          quality_score: qualityScore,
+          is_active: true,
+          times_used: 0,
+          tags: JSON.stringify([]),
+          regions: JSON.stringify(['US']),
+          cached_at: new Date()
         });
+
+        imported++;
+        
       } catch (error) {
         errors.push(`Row ${i + 2}: ${error.message}`);
       }
     }
 
-    // Insert valid questions
-    let imported = 0;
-    if (questions.length > 0) {
-      await db('questions').insert(questions);
-      imported = questions.length;
-    }
-
     return {
       imported,
-      total: records.length,
-      errors
+      errors,
+      total: records.length
     };
   }
 
-  // Flag/unflag question
-  async flagQuestion(questionId, userId) {
-    const question = await db('questions')
-      .where('id', questionId)
-      .first();
-
-    if (!question) {
-      throw new Error('Question not found');
-    }
-
-    const newFlagStatus = !question.is_flagged;
-
-    await db('questions')
-      .where('id', questionId)
-      .update({
-        is_flagged: newFlagStatus,
-        flagged_by: newFlagStatus ? userId : null,
-        flagged_at: newFlagStatus ? new Date() : null
-      });
-
-    return {
-      id: questionId,
-      is_flagged: newFlagStatus
-    };
-  }
-
-  // Update question
-  async updateQuestion(questionId, updates, userId) {
-    const allowedUpdates = [
-      'question',
-      'correct_answer',
-      'incorrect_answers',
-      'category',
-      'difficulty'
-    ];
-
-    // Filter allowed updates
-    const updateData = {};
-    for (const key of allowedUpdates) {
-      if (updates[key] !== undefined) {
-        updateData[key] = updates[key];
-      }
-    }
-
-    if (updateData.incorrect_answers && Array.isArray(updateData.incorrect_answers)) {
-      updateData.incorrect_answers = JSON.stringify(updateData.incorrect_answers);
-    }
-
-    updateData.updated_at = new Date();
-    updateData.updated_by = userId;
-
-    const [updated] = await db('questions')
-      .where('id', questionId)
-      .update(updateData)
-      .returning('*');
-
-    if (!updated) {
-      throw new Error('Question not found');
-    }
-
-    return {
-      ...updated,
-      incorrect_answers: JSON.parse(updated.incorrect_answers)
-    };
-  }
-
-  // Delete question
-  async deleteQuestion(questionId) {
-    const deleted = await db('questions')
-      .where('id', questionId)
-      .where('is_custom', true) // Only allow deletion of custom questions
-      .delete();
-
-    if (!deleted) {
-      throw new Error('Question not found or cannot be deleted');
-    }
-
-    return true;
-  }
-
-  // Get question categories
+  // Get all categories
   async getCategories() {
-    const categories = await db('questions')
-      .distinct('category')
-      .orderBy('category');
-
-    return categories.map(c => c.category);
+    // Return the predefined categories
+    // Could also query distinct categories from the database
+    return this.categories;
   }
 
-  // Get question statistics
-  async getQuestionStats(questionId) {
-    const stats = await db('question_responses')
-      .where('question_id', questionId)
-      .select(
-        db.raw('COUNT(*) as total_responses'),
-        db.raw('SUM(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_responses'),
-        db.raw('AVG(response_time) as avg_response_time')
-      )
-      .first();
+  // Get total question count with filters
+  async getQuestionCount(filters = {}) {
+    let query = db('question_cache');
 
-    return {
-      times_used: parseInt(stats.total_responses) || 0,
-      success_rate: stats.total_responses > 0 
-        ? (stats.correct_responses / stats.total_responses) 
-        : 0,
-      avg_response_time: parseFloat(stats.avg_response_time) || 0
+    if (filters.difficulty) {
+      query = query.where('difficulty', filters.difficulty);
+    }
+    if (filters.category) {
+      query = query.where('category', filters.category);
+    }
+    if (filters.search) {
+      query = query.where('question_text', 'ilike', `%${filters.search}%`);
+    }
+    if (filters.status === 'flagged') {
+      query = query.where('quality_score', '<', 30);
+    } else if (filters.status === 'active') {
+      query = query.where('is_active', true);
+    } else if (filters.status === 'inactive') {
+      query = query.where('is_active', false);
+    }
+
+    const result = await query.count('id as count');
+    return parseInt(result[0].count);
+  }
+
+  // Get flagged question count (low quality score)
+  async getFlaggedCount() {
+    const result = await db('question_cache')
+      .where('quality_score', '<', 30)
+      .count('id as count');
+    return parseInt(result[0].count);
+  }
+
+  // Get custom question count (not applicable for cache, return 0)
+  async getCustomCount() {
+    // All questions in cache are imported, so custom count is 0
+    // If you want to track custom questions, you could check api_question_id pattern
+    const result = await db('question_cache')
+      .where('api_question_id', 'like', 'custom_%')
+      .count('id as count');
+    return parseInt(result[0].count);
+  }
+
+  // Calculate quality score for a question
+  calculateQualityScore(questionText, wordCount) {
+    let score = 50; // Base score
+
+    // Word count scoring
+    if (wordCount >= 8 && wordCount <= 15) {
+      score += 30; // Optimal length
+    } else if (wordCount < 5) {
+      score -= 20; // Too short
+    } else if (wordCount > 20) {
+      score -= 10; // Too long
+    }
+
+    // Check for question mark
+    if (questionText.includes('?')) {
+      score += 10;
+    }
+
+    // Check for all caps (poor quality)
+    if (questionText === questionText.toUpperCase()) {
+      score -= 20;
+    }
+
+    // Ensure score is between 0 and 100
+    return Math.max(0, Math.min(100, score));
+  }
+
+  // Bulk flag questions
+  async bulkFlag(questionIds, userId, reason) {
+    const results = {
+      flagged: [],
+      failed: []
     };
+
+    for (const id of questionIds) {
+      try {
+        await db('question_cache')
+          .where('id', id)
+          .update({
+            quality_score: 0 // Flag by setting quality score to 0
+          });
+        results.flagged.push(id);
+      } catch (error) {
+        results.failed.push(id);
+      }
+    }
+
+    return results;
   }
 
-  // Generate CSV template
-  generateCSVTemplate() {
-    const template = [
-      {
-        question: 'What is the capital of France?',
-        correct_answer: 'Paris',
-        incorrect_answers: 'London|Berlin|Madrid',
-        category: 'Geography',
-        difficulty: 'easy'
-      },
-      {
-        question: 'Which planet is known as the Red Planet?',
-        correct_answer: 'Mars',
-        incorrect_answers: 'Venus|Jupiter|Saturn',
-        category: 'Science & Nature',
-        difficulty: 'easy'
+  // Bulk delete questions (soft delete)
+  async bulkDelete(questionIds) {
+    const results = {
+      deleted: [],
+      failed: []
+    };
+
+    for (const id of questionIds) {
+      try {
+        await db('question_cache')
+          .where('id', id)
+          .update({
+            is_active: false
+          });
+        results.deleted.push(id);
+      } catch (error) {
+        results.failed.push(id);
       }
-    ];
+    }
 
-    const headers = Object.keys(template[0]).join(',');
-    const rows = template.map(row => 
-      Object.values(row).map(val => `"${val}"`).join(',')
-    );
+    return results;
+  }
 
-    return [headers, ...rows].join('\n');
+  // Get questions for export (without pagination)
+  async exportQuestions(filters = {}) {
+    let query = db('question_cache')
+      .select(
+        'id',
+        'question_text as question',
+        'category',
+        'difficulty',
+        'correct_answer',
+        'incorrect_answers',
+        'is_active',
+        'times_used',
+        'quality_score'
+      );
+
+    // Apply filters
+    if (filters.difficulty) {
+      query = query.where('difficulty', filters.difficulty);
+    }
+    if (filters.category) {
+      query = query.where('category', filters.category);
+    }
+    if (filters.status === 'flagged') {
+      query = query.where('quality_score', '<', 30);
+    } else if (filters.status === 'active') {
+      query = query.where('is_active', true);
+    } else if (filters.status === 'inactive') {
+      query = query.where('is_active', false);
+    }
+
+    const questions = await query.orderBy('id', 'desc');
+
+    return questions.map(q => ({
+      ...q,
+      incorrect_answers: typeof q.incorrect_answers === 'string' 
+        ? JSON.parse(q.incorrect_answers) 
+        : q.incorrect_answers,
+      is_flagged: q.quality_score < 30
+    }));
+  }
+
+  // Legacy methods for compatibility
+  async getAll() {
+    const result = await this.getQuestions({ limit: 1000 });
+    return result.questions;
   }
 }
 

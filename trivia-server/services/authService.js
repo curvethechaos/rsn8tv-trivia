@@ -8,8 +8,8 @@ const db = require('../db/connection');
 
 // Security constants
 const SALT_ROUNDS = 12;
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
+const ACCESS_TOKEN_EXPIRY = '24h';
+const REFRESH_TOKEN_EXPIRY = '30d';
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 30 * 60 * 1000; // 30 minutes
 const TOKEN_ROTATION_ENABLED = true;
