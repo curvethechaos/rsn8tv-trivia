@@ -1,9 +1,0 @@
-
-// Add these lines to server.js
-const exportRoutes = require("./routes/exportRoutes");
-app.use("/api/admin/exports", exportRoutes);
-
-// Initialize queues
-require("./queues/exportQueue");
-require("./queues/prizeQueue");
-

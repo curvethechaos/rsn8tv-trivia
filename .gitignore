@@ -1,31 +1,50 @@
 # Node
 node_modules/
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Environment
+# Environment files
 .env
 .env.local
+.env.production
 
 # Logs
 logs/
 *.log
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+
+# Build/dist folders
+dist/
+build/
 
 # PM2
 .pm2/
 
-# Temp files
-*.backup
-*.bak
+# Uploads
+uploads/
 temp/
 
-# System status files
-system_status_*.txt
-status_check.sh
+# Backup files
+*.bak
+*.backup
+*~
+
+# Database dumps
+*.sql
+*.dump
+
+# Session files
+sessions/
+
+# Cache
+.cache/
