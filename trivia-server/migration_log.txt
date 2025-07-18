@@ -1,0 +1,1 @@
+Sun Jun 29 08:02:11 UTC 2025: Created scores table and leaderboard triggers

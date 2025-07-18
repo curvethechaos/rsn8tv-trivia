@@ -1,0 +1,37 @@
+=== RSN8TV TRIVIA SYSTEM STATUS CHECK ===
+Generated: Sun Jul 13 04:30:32 UTC 2025
+=========================================
+
+📊 DATABASE TABLES:
+-------------------
+admin_audit_logs
+admin_login_attempts
+admin_refresh_tokens
+admin_users
+answers
+branding_config
+email_campaigns
+exports
+game_rounds
+knex_migrations
+knex_migrations_lock
+leaderboards
+player_profiles
+player_statistics
+players
+prize_claims
+prize_configurations
+question_cache
+question_responses
+questions
+scores
+session_questions
+sessions
+system_settings
+themes
+venues
+
+📋 CRITICAL TABLES CHECK:
+-------------------------
+✅ branding_config - 0 rows
+❌ prize_configurations - MISSING or ERROR
