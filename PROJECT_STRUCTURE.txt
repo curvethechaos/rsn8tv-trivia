@@ -1,0 +1,293 @@
+.
+├── .gitignore
+├── PROJECT_STATUS.md
+├── PROJECT_STRUCTURE.txt
+├── README.md
+├── admin-panel
+│   └── src
+├── api_test.sh
+├── backendFix.sh
+├── backups
+│   └── 20250624-034739
+├── diagnose.sh
+├── docs
+│   └── database-schema.sql
+├── emergency_fix.sh
+├── fixSQL.sh
+├── fix_remaining.sh
+├── frontend
+│   ├── admin
+│   │   └── monitoring
+│   │       ├── dashboard.css
+│   │       ├── dashboard.gpt
+│   │       ├── dashboard.html
+│   │       ├── dashboard.html.backup
+│   │       ├── dashboard.html.bak
+│   │       └── index.html
+│   └── trivia
+│       ├── assets
+│       ├── favicon.ico
+│       ├── gamehost.html
+│       ├── host.css
+│       ├── host.html
+│       ├── host.html.backup
+│       ├── host.html.save
+│       ├── index.html
+│       ├── index.html.backup
+│       ├── index.html.backup-20250630-045202
+│       ├── index.html.backup2
+│       ├── index.html.backup3
+│       ├── index.html.backup4
+│       ├── index.html.backup_newest
+│       ├── index.html.broken
+│       └── player.css
+├── status_check.sh
+├── system_status_20250713_043032.txt
+├── trivia-frontend
+│   ├── .gitignore
+│   ├── README.md
+│   ├── admin
+│   │   ├── admin.css
+│   │   ├── index.html
+│   │   ├── login.html
+│   │   └── monitoring
+│   │       ├── dashboard.css
+│   │       ├── dashboard.html
+│   │       ├── dashboard.html.backup
+│   │       ├── dashboard.html.bak
+│   │       └── index.html
+│   ├── package.json
+│   ├── public
+│   │   ├── favicon.ico
+│   │   ├── index.html
+│   │   ├── logo192.png
+│   │   ├── logo512.png
+│   │   ├── manifest.json
+│   │   └── robots.txt
+│   ├── src
+│   │   ├── App.css
+│   │   ├── App.test.tsx
+│   │   ├── App.tsx
+│   │   ├── components
+│   │   ├── hooks
+│   │   ├── index.css
+│   │   ├── index.tsx
+│   │   ├── logo.svg
+│   │   ├── react-app-env.d.ts
+│   │   ├── reportWebVitals.ts
+│   │   ├── services
+│   │   │   ├── api.ts
+│   │   │   └── socketService.ts
+│   │   ├── setupTests.ts
+│   │   ├── styles
+│   │   │   └── globals.css
+│   │   ├── types
+│   │   │   └── socket.types.ts
+│   │   └── utils
+│   ├── trivia
+│   │   ├── assets
+│   │   ├── favicon.ico
+│   │   ├── gamehost.html
+│   │   ├── host.css
+│   │   ├── host.html
+│   │   ├── host.html.backup
+│   │   ├── host.html.save
+│   │   ├── index.html
+│   │   ├── index.html.backup
+│   │   ├── index.html.backup-20250630-045202
+│   │   ├── index.html.backup2
+│   │   ├── index.html.backup3
+│   │   ├── index.html.backup4
+│   │   ├── index.html.backup_newest
+│   │   ├── index.html.broken
+│   │   └── player.css
+│   └── tsconfig.json
+└── trivia-server
+    ├── .env
+    ├── .env.example
+    ├── backups
+    │   ├── 20250624-034749
+    │   │   ├── gameManager.js
+    │   │   ├── hostHandler.js
+    │   │   ├── playerHandler.js
+    │   │   ├── sessionRoutes.js
+    │   │   ├── test-ws.js
+    │   │   └── wsServer.js
+    │   ├── 20250624-034857
+    │   │   ├── gameManager.js
+    │   │   ├── hostHandler.js
+    │   │   ├── playerHandler.js
+    │   │   ├── sessionRoutes.js
+    │   │   ├── test-ws.js
+    │   │   └── wsServer.js
+    │   └── 20250718_202214
+    │       ├── adminRoutes.js
+    │       ├── prizeService.js
+    │       └── questionService.js
+    ├── check-versions.js
+    ├── complete_setup.sh
+    ├── connect-as-host.js
+    ├── create-config.sh
+    ├── create-migrations.sh
+    ├── create-missing-files.js
+    ├── create-services.sh
+    ├── create_admin_user.js
+    ├── data
+    │   └── fallbackQuestions.json
+    ├── db
+    │   ├── connection.js
+    │   ├── migrations
+    │   │   ├── 001_create_sessions_table.js
+    │   │   ├── 002_create_player_profiles_table.js
+    │   │   ├── 003_create_players_table.js
+    │   │   ├── 004_create_answers_table.js
+    │   │   ├── 005_create_leaderboards_table.js
+    │   │   ├── 006_create_question_cache_table.js
+    │   │   ├── 007_create_game_rounds_table.js
+    │   │   ├── 008_create_player_statistics_table.js
+    │   │   ├── 009_enhance_leaderboard_system.sql
+    │   │   ├── 20250701181403_create_admin_auth_tables.js
+    │   │   ├── 20250702_phase1_essential.js
+    │   │   ├── 20250712_phase1_fix_missing_tables.js
+    │   │   ├── create_scores_table.sql
+    │   │   └── test-leaderboard.sql
+    │   └── seeds
+    │       └── 01_initial_data.js
+    ├── debug-test.js
+    ├── deploy_remaining_files.sh
+    ├── diagnose-error.sh
+    ├── ession_questions
+    ├── fix-now.sh
+    ├── fix-start-game.patch
+    ├── knexfile.js
+    ├── login_response.json
+    ├── middleware
+    │   ├── authMiddleware.js
+    │   ├── profanityMiddleware.js
+    │   └── profanityMiddleware.js.bak
+    ├── migration_log.txt
+    ├── migrations
+    │   └── add_word_count_and_quality_fields.sql
+    ├── nodemon
+    ├── package-lock.json
+    ├── package.json
+    ├── player-join-fix.patch
+    ├── profantiyService.js
+    ├── queues
+    │   ├── exportQueue.js
+    │   └── prizeQueue.js
+    ├── quick-test.js
+    ├── reset-and-host.sh
+    ├── routes
+    │   ├── adminRoutes.PlayerTracking
+    │   ├── adminRoutes.js
+    │   ├── adminRoutes.js.BACKUP
+    │   ├── adminRoutes.js.backup
+    │   ├── adminRoutes.js.backup-simple-auth
+    │   ├── adminRoutes.js.bak
+    │   ├── authRoutes.js
+    │   ├── brandingRoutes.js
+    │   ├── brandingRoutes.js.backup
+    │   ├── exportRoutes.js
+    │   ├── exportRoutes.js.backup
+    │   ├── fix_admin_routes.sh
+    │   ├── leaderboardRoutes.js
+    │   ├── leaderboardRoutes.js.backup-20250630-022755
+    │   ├── playerRoutes.js
+    │   ├── prizeRoutes.js
+    │   ├── prizeRoutes.js.backup
+    │   ├── questionRoutes.js
+    │   ├── questionRoutes.js.backup
+    │   ├── sessionRoutes.js
+    │   ├── sessionRoutes.js.backup
+    │   ├── sessionRoutes.js.backup-20250630-022755
+    │   ├── sessionRoutes.js.backup2
+    │   ├── sessionRoutes.js.save
+    │   ├── themeRoutes.js
+    │   └── themeRoutes.js.backup
+    ├── rsn8tv-trivia-server@1.0.0
+    ├── scripts
+    │   ├── create-super-admin.js
+    │   ├── import-all-opentdb-comprehensive.js
+    │   ├── import-all-opentdb-fixed.js
+    │   └── import-all-opentdb.js
+    ├── seeds
+    ├── server.js
+    ├── server.js.backup
+    ├── server.workingAUTH
+    ├── server_updates.txt
+    ├── services
+    │   ├── authService.js
+    │   ├── baseService.js
+    │   ├── brandingService.js
+    │   ├── data
+    │   │   └── fallbackQuestions.json
+    │   ├── exportService.js
+    │   ├── gameManager.js
+    │   ├── gameManager.js.6_28_25_1036pm
+    │   ├── gameManager.js.WORKING
+    │   ├── gameManager.js.WORKINGBACKUP
+    │   ├── gameManager.js.backup-multi-round
+    │   ├── prizeService.js
+    │   ├── profanityService.js
+    │   ├── profanityService.js.backup
+    │   ├── questionService.js
+    │   ├── questionService.js.bak
+    │   ├── redisService.js
+    │   ├── scoringService.js
+    │   ├── serviceWrappers.js
+    │   ├── sessionService.js
+    │   ├── themeService.js
+    │   ├── triviaAPIService.js
+    │   ├── triviaAPIService.js.BACKUP
+    │   └── triviaAPIService.js.api-backup
+    ├── setup-and-test-sh
+    ├── status_check.sh
+    ├── system_status_20250713_043144.txt
+    ├── test
+    │   ├── integration
+    │   │   └── questionTracking.test.js
+    │   ├── services
+    │   │   └── exportService.test.js
+    │   ├── test-profanity.js
+    │   └── test-profanity.sh
+    ├── test-db-simple.js
+    ├── test-db.js
+    ├── test-debug-ws.js
+    ├── test-minimal.js
+    ├── test-server.js
+    ├── test-simple-ws.js
+    ├── test-websockets.js
+    ├── test-ws-query.js
+    ├── test_db.js
+    ├── tions' as table_name, COUNT(*) as count FROM questions
+    ├── tsconfig.json
+    ├── update_session_routes.sh
+    ├── utils
+    │   ├── cache.js
+    │   ├── config.js
+    │   ├── logger.js
+    │   ├── timeSync.js
+    │   ├── validate.js
+    │   └── validation.js
+    └── ws
+        ├── hostHandler.js
+        ├── hostHandler.js.WORKINGBACKUP
+        ├── playerHandler.js
+        ├── playerHandler.js.WORKING
+        ├── playerHandler.js.backup
+        ├── playerHandler.js.before-fix
+        ├── playerHandler.js.countdown-backup
+        ├── playerHandler.js.orig
+        ├── playerHandler.js.rej
+        ├── test-ws.js
+        ├── utils
+        │   └── timeSync.js
+        ├── ws
+        │   ├── hostHandler.js
+        │   ├── playerHandler.js
+        │   └── wsServer.js
+        ├── wsServer.js
+        └── wsServer.js.backup
+
+47 directories, 243 files
