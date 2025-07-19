@@ -222,7 +222,7 @@ class PrizeService {
       .select('rank')
       .first();
 
-    if (rank && rank.rank_position === 1) {
+    if (rank && rank.rank === 1) {
       eligibility.timeBased = true;
       eligibility.prizes.push({
         type: 'time-based',
@@ -339,4 +339,4 @@ class PrizeService {
 
 const prizeService = new PrizeService();
 module.exports = prizeService;
-module.exports = new PrizeService();
+module.exports = PrizeService;

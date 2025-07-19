@@ -1,39 +1,73 @@
 # RSN8TV Trivia System - Project Status
+*Last Updated: $(date)*
 
-Last Updated: July 13, 2025
+## 🚀 Current Status: WORKING
 
-## ✅ SYSTEM IS FULLY OPERATIONAL
+### ✅ What's Working
+- **Authentication**: JWT auth with axiom/HirschF843
+- **Admin Dashboard**: https://trivia.rsn8tv.com/admin/monitoring/dashboard.html
+- **Game Engine**: Real-time multiplayer trivia
+- **Database**: PostgreSQL with all tables configured
+- **Leaderboards**: Weekly/Monthly/Quarterly/Yearly with tie-breaking
+- **WebSocket**: Real-time game communication
+- **Host Display**: Tablet interface for venues
+- **Player Interface**: Mobile-responsive gameplay
 
-### Working Features:
-- **Game Engine**: Single-round, 30-second timer, real-time multiplayer
-- **Player System**: Registration, profiles, device fingerprinting ready
-- **Admin Dashboard**: 13-tab system with JWT authentication
-- **Database**: All tables created, triggers functional
-- **API Endpoints**: All Phase 1 endpoints implemented
-- **Leaderboards**: Automated weekly/monthly/quarterly/yearly tracking
-- **Prize System**: Time-based and threshold prizes configured
+### ⚠️ Known Issues
+- `/api/sessions` endpoint returns 404
+- `/api/admin/questions` returns 500 (service method issue)
+- `/api/admin/exports` list returns 500 (service method issue)
+- Some admin dashboard tabs have limited functionality
 
-### System Access:
-- Live Game: https://trivia.rsn8tv.com
-- Admin Dashboard: https://trivia.rsn8tv.com/admin/monitoring/dashboard.html
-- Admin Login: axiom / [password in .env]
+### 📊 API Test Results
+- Authentication: ✅ Working
+- Admin Stats: ✅ Working
+- Current Games: ✅ Working
+- Players List: ✅ Working
+- Leaderboards: ✅ Working
+- Themes: ✅ Working
+- Branding: ✅ Working
+- Prizes: ✅ Working
 
-### Recent Fixes (July 13):
-- ✅ Added authentication to admin dashboard
-- ✅ Fixed horizontal scroll issue in dashboard CSS
-- ✅ Connected all admin API endpoints
-- ✅ Backed up entire system to GitHub
+### 🔧 Configuration
+- **Backend**: Node.js + Express + Socket.IO
+- **Database**: PostgreSQL (axiom/HirschF843)
+- **Process Manager**: PM2 (process name: rsn8tv)
+- **Web Server**: Nginx reverse proxy
+- **Domain**: https://trivia.rsn8tv.com
 
-### Next Steps:
-1. Import questions from OpenTDB (scripts ready in `/scripts`)
-2. Configure AWS SES for email campaigns
-3. Set up Xibo integration for device tracking
-4. Add Google Analytics
-5. Implement sponsor coupon system
+### 📁 Key Files
+- Backend: `~/rsn8tv-trivia/trivia-server/`
+- Frontend: `/var/www/html/`
+- Admin Dashboard: `/var/www/html/admin/monitoring/dashboard.html`
+- Player App: `/var/www/html/trivia/index.html`
+- Host Display: `/var/www/html/trivia/host.html`
 
-### Technical Stack:
-- Backend: Node.js, Express, Socket.IO
-- Database: PostgreSQL
-- Frontend: React (player), vanilla JS (admin)
-- Auth: JWT with refresh tokens
-- Hosting: Ubuntu 22.04, PM2, Nginx
+### 🎮 How to Test
+1. Host creates game: https://trivia.rsn8tv.com/trivia/host.html
+2. Players join: https://trivia.rsn8tv.com/trivia/
+3. Admin monitors: https://trivia.rsn8tv.com/admin/monitoring/dashboard.html
+
+### ⚡ Quick Commands
+\`\`\`bash
+# Check server status
+pm2 status
+
+# View logs
+pm2 logs rsn8tv -f
+
+# Restart server
+pm2 restart rsn8tv
+
+# Run API tests
+./api_test.sh
+
+# Database access
+psql -U axiom -d rsn8tv_trivia
+\`\`\`
+
+### 🚨 DO NOT
+- Don't run random fix scripts without backups
+- Don't change service instantiation patterns
+- Don't modify working authentication
+- The system is WORKING - be very careful with changes

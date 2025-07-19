@@ -25,6 +25,11 @@ const prizeRoutes    = require('./routes/prizeRoutes');
 const brandingRoutes = require('./routes/brandingRoutes');
 
 // Import Phase 1 services
+const ExportService = require('./services/exportService');
+const ThemeService = require('./services/themeService');
+const QuestionService = require('./services/questionService');
+const PrizeService = require('./services/prizeService');
+const BrandingService = require('./services/brandingService');
 
 // Initialize Express app and server
 const app = express();
@@ -45,11 +50,11 @@ const gameManager = new GameManager(io, db);
 const profanityService = new ProfanityService();
 
 // Initialize Phase 1 services
-const exportService = require("./services/exportService");
-const themeService = require("./services/themeService");
-const questionService = require("./services/questionService");
-const prizeService = require("./services/prizeService");
-const brandingService = require("./services/brandingService");
+const exportService = new ExportService();
+const themeService = new ThemeService();
+const questionService = new QuestionService();
+const prizeService = new PrizeService();
+const brandingService = BrandingService;
 
 // Import service wrappers for missing methods
 const {
@@ -196,50 +201,6 @@ io.on('connection', (socket) => {
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ success: false, error: 'Internal server error' });
-});
-
-// Sessions list
-app.get("/api/sessions", async (req, res) => {
-  try {
-    const sessions = await db("sessions")
-      .select("id", "room_code", "created_at", "is_active")
-      .orderBy("created_at", "desc")
-      .limit(20);
-    res.json({ success: true, sessions });
-  } catch (error) {
-    console.error("Sessions error:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch sessions" });
-  }
-});
-
-// Current games
-app.get("/api/admin/current-games", authMiddleware.verifyToken, async (req, res) => {
-  try {
-    const games = await db("sessions")
-      .select("sessions.*", db.raw("COUNT(players.id) as player_count"))
-      .leftJoin("players", "sessions.id", "players.session_id")
-      .where("sessions.is_active", true)
-      .groupBy("sessions.id")
-      .orderBy("sessions.created_at", "desc");
-    res.json({ success: true, games });
-  } catch (error) {
-    console.error("Current games error:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch current games" });
-  }
-});
-
-// Players list
-app.get("/api/admin/players", authMiddleware.verifyToken, async (req, res) => {
-  try {
-    const players = await db("player_profiles")
-      .select("*")
-      .orderBy("created_at", "desc")
-      .limit(100);
-    res.json({ success: true, players });
-  } catch (error) {
-    console.error("Players error:", error);
-    res.status(500).json({ success: false, error: "Failed to fetch players" });
-  }
 });
 
 // 404 handler

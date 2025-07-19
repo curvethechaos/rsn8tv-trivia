@@ -19,6 +19,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.845.0",
     "@aws-sdk/client-ses": "^3.845.0",
+    "archiver": "^7.0.1",
     "aws-sdk": "^2.1692.0",
     "axios": "^1.10.0",
     "bcrypt": "^5.1.1",

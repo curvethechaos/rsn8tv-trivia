@@ -109,7 +109,7 @@ class QuestionService {
 
   // Get single question by ID
   async getById(id) {
-    const question = await db('question_cache')
+    const question = await db('questions')
       .where('id', id)
       .first();
 
@@ -136,7 +136,7 @@ class QuestionService {
       ? incorrect_answers
       : [incorrect_answers];
 
-    const [created] = await db('question_cache')
+    const [created] = await db('questions')
       .insert({
         question,
         correct_answer,
@@ -176,7 +176,7 @@ class QuestionService {
       );
     }
 
-    const [updated] = await db('question_cache')
+    const [updated] = await db('questions')
       .where('id', id)
       .update(updateData)
       .returning('*');
@@ -191,7 +191,7 @@ class QuestionService {
   // Delete question (soft delete - we don't actually have is_deleted column, so just return)
   async remove(id) {
     // Since there's no is_deleted column, we'll just flag it
-    const [removed] = await db('question_cache')
+    const [removed] = await db('questions')
       .where('id', id)
       .update({
         is_flagged: true,
@@ -214,7 +214,7 @@ class QuestionService {
       flagged_at: !question.is_flagged ? new Date() : null
     };
 
-    const [updated] = await db('question_cache')
+    const [updated] = await db('questions')
       .where('id', id)
       .update(updateData)
       .returning('*');
@@ -273,7 +273,7 @@ class QuestionService {
         }
 
         // Insert question
-        await db('question_cache').insert({
+        await db('questions').insert({
           question: row.question.trim(),
           correct_answer: row.correct_answer.trim(),
           incorrect_answers: JSON.stringify(incorrectAnswers),
@@ -301,7 +301,7 @@ class QuestionService {
   // Get all categories
   async getCategories() {
     // Query distinct categories from database
-    const result = await db('question_cache')
+    const result = await db('questions')
       .distinct('category')
       .whereNotNull('category')
       .orderBy('category');
@@ -311,7 +311,7 @@ class QuestionService {
 
   // Get total question count with filters
   async getQuestionCount(filters = {}) {
-    let query = db('question_cache');
+    let query = db('questions');
 
     if (filters.difficulty && filters.difficulty !== 'all') {
       query = query.where('difficulty', filters.difficulty);
@@ -336,7 +336,7 @@ class QuestionService {
 
   // Get flagged question count
   async getFlaggedCount() {
-    const result = await db('question_cache')
+    const result = await db('questions')
       .where('is_flagged', true)
       .count('id as count');
     return parseInt(result[0].count);
@@ -344,7 +344,7 @@ class QuestionService {
 
   // Get custom question count
   async getCustomCount() {
-    const result = await db('question_cache')
+    const result = await db('questions')
       .where('is_custom', true)
       .count('id as count');
     return parseInt(result[0].count);
@@ -359,7 +359,7 @@ class QuestionService {
 
     for (const id of questionIds) {
       try {
-        await db('question_cache')
+        await db('questions')
           .where('id', id)
           .update({
             is_flagged: true,
@@ -385,7 +385,7 @@ class QuestionService {
 
     for (const id of questionIds) {
       try {
-        await db('question_cache')
+        await db('questions')
           .where('id', id)
           .update({
             is_flagged: true,
@@ -401,4 +401,4 @@ class QuestionService {
   }
 }
 
-module.exports = new QuestionService();
+module.exports = QuestionService;

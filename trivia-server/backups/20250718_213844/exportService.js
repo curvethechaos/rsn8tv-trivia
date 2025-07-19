@@ -70,7 +70,7 @@ class ExportService {
           data = await this.exportLeaderboard(filters);
           filename = `leaderboard_${filters.period || 'weekly'}_${new Date().toISOString().split('T')[0]}.csv`;
           break;
-        case 'question_cache':
+        case 'questions':
           data = await this.exportQuestions(filters);
           filename = `questions_export_${new Date().toISOString().split('T')[0]}.csv`;
           break;
@@ -276,7 +276,7 @@ class ExportService {
           'pp.real_name',
           'l.total_score',
           'l.period_start',
-          'l.created_at as submitted_at'
+          'l.submitted_at'
         )
         .orderBy('l.period_start', 'desc');
 
@@ -301,9 +301,9 @@ class ExportService {
           'pp.real_name',
           'l.total_score',
           'l.period_start',
-          'l.created_at as submitted_at'
+          'l.submitted_at'
         )
-        .orderBy('l.created_at as submitted_at', 'desc');
+        .orderBy('l.submitted_at', 'desc');
 
       return winners.map(winner => ({
         'Week Start': new Date(winner.period_start).toLocaleDateString(),
@@ -491,4 +491,4 @@ class ExportService {
   }
 }
 
-module.exports = new ExportService();
+module.exports = ExportService;

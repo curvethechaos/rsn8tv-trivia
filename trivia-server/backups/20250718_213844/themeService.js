@@ -185,4 +185,4 @@ ${!theme.effects?.animations ? `
   }
 }
 
-module.exports = new ThemeService();
+module.exports = ThemeService;

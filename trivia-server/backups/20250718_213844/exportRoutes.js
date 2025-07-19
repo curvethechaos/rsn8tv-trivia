@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 
 // POST /api/admin/exports
 router.post('/', [
-  body('type').isIn(['players', 'leaderboard', 'question_cache', 'prizes', 'analytics']),
+  body('type').isIn(['players', 'leaderboard', 'questions', 'prizes', 'analytics']),
   body('filters').optional().isObject()
 ], async (req, res, next) => {
   const errors = validationResult(req);
@@ -397,8 +397,8 @@ async function processExport(exportId, type, filters, db) {
         filename = `leaderboard_${period}_export.csv`;
         break;
 
-      case 'question_cache':
-        const questions = await db('question_cache')
+      case 'questions':
+        const questions = await db('questions')
           .where('is_deleted', false)
           .select('*');
 

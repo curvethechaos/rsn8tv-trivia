@@ -45,7 +45,7 @@ router.get('/', async (req, res) => {
 
     // Format the response
     const formattedLeaderboard = leaderboard.rows.map(row => ({
-      rank: row.rank_position,
+      rank: row.rank,
       nickname: row.nickname,
       totalScore: row.total_score,
       gamesPlayed: row.games_played,

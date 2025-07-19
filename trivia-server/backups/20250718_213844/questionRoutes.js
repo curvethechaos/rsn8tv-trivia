@@ -105,9 +105,9 @@ router.get('/', [
 
     // Get total counts
     const [totalResult, flaggedResult, customResult] = await Promise.all([
-      db('question_cache').count('id as count'),
-      db('question_cache').where('is_flagged', true).count('id as count'),
-      db('question_cache').where('is_custom', true).count('id as count')
+      db('questions').count('id as count'),
+      db('questions').where('is_flagged', true).count('id as count'),
+      db('questions').where('is_custom', true).count('id as count')
     ]);
 
     const totalCount = parseInt(totalResult[0].count);
@@ -156,7 +156,7 @@ router.get('/categories', async (req, res, next) => {
     }
 
     // Fallback to direct database query
-    const result = await db('question_cache')
+    const result = await db('questions')
       .distinct('category')
       .whereNotNull('category')
       .orderBy('category');
@@ -205,7 +205,7 @@ router.get('/:id', [
     }
 
     // Fallback to direct database query
-    const question = await db('question_cache')
+    const question = await db('questions')
       .where('id', req.params.id)
       .first();
 
@@ -263,7 +263,7 @@ router.post('/', [
     }
 
     // Fallback to direct database insert
-    const [created] = await db('question_cache')
+    const [created] = await db('questions')
       .insert(questionData)
       .returning('*');
 
@@ -319,7 +319,7 @@ router.put('/:id', [
     }
 
     // Fallback to direct database update
-    const [updated] = await db('question_cache')
+    const [updated] = await db('questions')
       .where('id', req.params.id)
       .update(updateData)
       .returning('*');
@@ -370,7 +370,7 @@ router.delete('/:id', [
     }
 
     // Fallback to soft delete
-    const result = await db('question_cache')
+    const result = await db('questions')
       .where('id', req.params.id)
       .update({
         is_deleted: true,
@@ -430,7 +430,7 @@ router.post('/:id/flag', [
     }
 
     // Fallback to direct database update
-    const question = await db('question_cache')
+    const question = await db('questions')
       .where('id', req.params.id)
       .first();
 
@@ -442,7 +442,7 @@ router.post('/:id/flag', [
     }
 
     // Toggle flag status
-    const [updated] = await db('question_cache')
+    const [updated] = await db('questions')
       .where('id', req.params.id)
       .update({
         is_flagged: !question.is_flagged,
@@ -549,7 +549,7 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
     }
 
     // Fallback to direct database insert
-    await db('question_cache').insert(questions);
+    await db('questions').insert(questions);
 
     res.json({
       success: true,

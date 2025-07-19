@@ -33,9 +33,9 @@ const questionServiceWrapper = {
 
     // Get counts
     const [totalResult, flaggedResult, customResult] = await Promise.all([
-      db('question_cache').count('id as count'),
-      db('question_cache').where('is_flagged', true).count('id as count'),
-      db('question_cache').where('is_custom', true).count('id as count')
+      db('questions').count('id as count'),
+      db('questions').where('is_flagged', true).count('id as count'),
+      db('questions').where('is_custom', true).count('id as count')
     ]);
 
     const offset = (page - 1) * limit;
@@ -50,7 +50,7 @@ const questionServiceWrapper = {
   },
 
   async getCategories() {
-    const result = await db('question_cache')
+    const result = await db('questions')
       .distinct('category')
       .whereNotNull('category')
       .orderBy('category');
@@ -58,10 +58,10 @@ const questionServiceWrapper = {
   },
 
   async flagQuestion(questionId, userId, reason) {
-    const question = await db('question_cache').where('id', questionId).first();
+    const question = await db('questions').where('id', questionId).first();
     if (!question) return null;
 
-    const [updated] = await db('question_cache')
+    const [updated] = await db('questions')
       .where('id', questionId)
       .update({
         is_flagged: !question.is_flagged,

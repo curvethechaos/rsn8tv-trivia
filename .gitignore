@@ -48,3 +48,39 @@ sessions/
 
 # Cache
 .cache/
+
+# Backup files
+*.backup*
+*.bak
+server.js.broken
+
+# Test files
+test_*.js
+*_test.sh
+
+# Temporary files
+*.tmp
+/tmp/
+
+# Log files
+*.log
+logs/
+
+# PM2
+.pm2/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
