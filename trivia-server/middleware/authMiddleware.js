@@ -102,3 +102,11 @@ class AuthMiddleware {
 }
 
 module.exports = new AuthMiddleware();
+
+// Admin authentication (alias for now)
+const authenticateAdmin = jwt;
+
+// Export middleware functions
+module.exports = jwt;
+module.exports.authMiddleware = jwt;
+module.exports.authenticateAdmin = authenticateAdmin;

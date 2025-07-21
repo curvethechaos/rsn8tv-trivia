@@ -1,485 +1,549 @@
-// services/exportService.js - Export service for generating CSV and other exports
 const AWS = require('aws-sdk');
-const { v4: uuidv4 } = require('uuid');
-const csv = require('csv-stringify');
+const fs = require('fs').promises;
+const path = require('path');
+const csv = require('csv-writer').createObjectCsvWriter;
 const db = require('../db/connection');
+const logger = require('../utils/logger');
+const exportQueue = require('../queues/exportQueue');
 
 class ExportService {
   constructor() {
-    // AWS S3 configuration - optional, will work without it
-    try {
-      this.s3 = new AWS.S3({
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-        region: process.env.AWS_REGION || 'us-east-1'
-      });
-      this.bucket = process.env.S3_BUCKET || 'rsn8tv-exports';
-      this.useS3 = !!(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-    } catch (e) {
-      console.log('S3 not configured, using local storage');
-      this.useS3 = false;
-    }
+    this.s3 = new AWS.S3({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION || 'us-east-1'
+    });
+    this.bucket = process.env.S3_BUCKET || 'rsn8tv-exports-302263084554';
   }
 
-  // Create a new export job - FIXED to use correct column names
+  /**
+   * Create a new export request
+   */
   async createExport(type, filters, userId) {
-    const exportId = uuidv4();
+    // Insert export record and get the auto-generated ID
+    const [exportRecord] = await db('exports')
+      .insert({
+        user_id: userId,
+        type,
+        filters: JSON.stringify(filters),
+        status: 'pending'
+      })
+      .returning(['id', 'type', 'status']);
+    
+    const exportId = exportRecord.id;
 
-    // Store export metadata in database with CORRECT column names
-    await db('exports').insert({
-      user_id: userId,           // Changed from created_by
-      export_type: type,         // Changed from type
-      export_format: 'csv',
-      filters: JSON.stringify(filters),
-      status: 'pending',
-      created_at: new Date()
-    });
-
-    // Process export asynchronously
-    setImmediate(() => {
-      this.processExport(exportId, type, filters, userId).catch(err => {
-        console.error('Export processing error:', err);
+    // Determine if we should process synchronously or queue
+    const estimatedRows = await this.estimateRowCount(type, filters);
+    
+    if (estimatedRows < 1000) {
+      // Process immediately for small exports
+      await this.processExport(exportId);
+    } else {
+      // Queue for large exports
+      await exportQueue.add({ exportId }, {
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000
+        }
       });
-    });
+    }
 
     return exportId;
   }
 
-  // Process export asynchronously
-  async processExport(exportId, type, filters, userId) {
-    try {
-      // Update status to processing
-      await db('exports')
-        .where('user_id', userId)
-        .where('export_type', type)
-        .whereRaw('created_at >= NOW() - INTERVAL \'1 minute\'')
-        .update({
-          status: 'processing'
-        });
-
-      // Generate export based on type
-      let data;
-      let filename;
-
-      switch (type) {
-        case 'players':
-          data = await this.exportPlayers(filters);
-          filename = `players_export_${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        case 'leaderboard':
-          data = await this.exportLeaderboard(filters);
-          filename = `leaderboard_${filters.period || 'weekly'}_${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        case 'question_cache':
-          data = await this.exportQuestions(filters);
-          filename = `questions_export_${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        case 'prizes':
-          data = await this.exportPrizeWinners(filters);
-          filename = `prize_winners_${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        case 'analytics':
-          data = await this.exportAnalytics(filters);
-          filename = `analytics_export_${new Date().toISOString().split('T')[0]}.csv`;
-          break;
-        default:
-          throw new Error('Invalid export type');
-      }
-
-      // Convert to CSV
-      const csvData = await this.convertToCSV(data);
-
-      // Store file (S3 or local)
-      let filePath = '';
-      if (this.useS3) {
-        const key = `exports/${userId}/${exportId}/${filename}`;
-        await this.uploadToS3(key, csvData, 'text/csv');
-        filePath = key;
-      } else {
-        // For now, just store the CSV data in memory
-        // In production, you'd save to disk
-        filePath = `/tmp/${filename}`;
-      }
-
-      // Update export record with CORRECT column names
-      await db('exports')
-        .where('user_id', userId)
-        .where('export_type', type)
-        .where('status', 'processing')
-        .update({
-          status: 'completed',
-          file_path: filePath,
-          file_size: Buffer.byteLength(csvData),
-          row_count: data.length,
-          completed_at: new Date()
-        });
-
-    } catch (error) {
-      console.error('Export processing error:', error);
-
-      // Update status to failed with CORRECT column name
-      await db('exports')
-        .where('user_id', userId)
-        .where('export_type', type)
-        .where('status', 'processing')
-        .update({
-          status: 'failed',
-          error_message: error.message,
-          completed_at: new Date()
-        });
-    }
-  }
-
-  // Export players data - FIXED to use scores table
-  async exportPlayers(filters) {
-    let query = db('player_profiles as pp')
-      .leftJoin(
-        db('scores')
-          .select('player_profile_id')
-          .count('* as games_played')
-          .max('score as high_score')
-          .groupBy('player_profile_id')
-          .as('s'),
-        'pp.id', 's.player_profile_id'
-      )
-      .select(
-        'pp.id',
-        'pp.nickname',
-        'pp.email',
-        'pp.real_name',
-        'pp.marketing_consent',
-        'pp.created_at',
-        db.raw('COALESCE(s.games_played, 0) as games_played'),
-        db.raw('COALESCE(s.high_score, 0) as high_score')
-      );
-
-    // Apply filters
-    if (filters.hasEmail) {
-      query = query.whereNotNull('pp.email');
-    }
-    if (filters.marketingConsent) {
-      query = query.where('pp.marketing_consent', true);
-    }
-    if (filters.search) {
-      query = query.where(function() {
-        this.where('pp.nickname', 'ilike', `%${filters.search}%`)
-          .orWhere('pp.email', 'ilike', `%${filters.search}%`)
-          .orWhere('pp.real_name', 'ilike', `%${filters.search}%`);
-      });
-    }
-
-    const players = await query.orderBy('pp.created_at', 'desc');
-
-    return players.map(player => ({
-      'Player ID': player.id,
-      'Nickname': player.nickname,
-      'Email': player.email || '',
-      'Real Name': player.real_name || '',
-      'Marketing Consent': player.marketing_consent ? 'Yes' : 'No',
-      'Games Played': player.games_played,
-      'High Score': player.high_score,
-      'Joined Date': new Date(player.created_at).toLocaleDateString()
-    }));
-  }
-
-  // Export leaderboard data
-  async exportLeaderboard(filters) {
-    const period = filters.period || 'weekly';
-
-    const leaderboard = await db.raw(`
-      SELECT * FROM get_leaderboard(?, ?)
-    `, [period, filters.limit || 100]);
-
-    return leaderboard.rows.map((row, index) => ({
-      'Rank': index + 1,
-      'Player': row.nickname,
-      'Total Score': row.total_score,
-      'Games Played': row.games_played,
-      'Average Score': row.average_score,
-      'Period': period.charAt(0).toUpperCase() + period.slice(1)
-    }));
-  }
-
-  // Export questions data - FIXED to use questions table structure
-  async exportQuestions(filters) {
-    let query = db('questions as q')
-      .leftJoin(
-        db('question_responses')
-          .select('question_id')
-          .count('* as times_used')
-          .sum(db.raw('CASE WHEN is_correct THEN 1 ELSE 0 END as correct_count'))
-          .groupBy('question_id')
-          .as('stats'),
-        'q.id', 'stats.question_id'
-      )
-      .select(
-        'q.id',
-        'q.question',
-        'q.category',
-        'q.difficulty',
-        'q.correct_answer',
-        'q.incorrect_answers',
-        'q.is_flagged',
-        'q.is_custom',
-        db.raw('COALESCE(stats.times_used, 0) as times_used'),
-        db.raw('CASE WHEN stats.times_used > 0 THEN ROUND((stats.correct_count::numeric / stats.times_used) * 100, 2) ELSE 0 END as success_rate')
-      );
-
-    // Apply filters
-    if (filters.difficulty) {
-      query = query.where('q.difficulty', filters.difficulty);
-    }
-    if (filters.category) {
-      query = query.where('q.category', filters.category);
-    }
-    if (filters.status === 'flagged') {
-      query = query.where('q.is_flagged', true);
-    }
-    if (filters.status === 'custom') {
-      query = query.where('q.is_custom', true);
-    }
-    if (filters.search) {
-      query = query.where('q.question', 'ilike', `%${filters.search}%`);
-    }
-
-    const questions = await query.orderBy('q.id');
-
-    return questions.map(q => ({
-      'ID': q.id,
-      'Question': q.question,
-      'Category': q.category,
-      'Difficulty': q.difficulty,
-      'Correct Answer': q.correct_answer,
-      'Incorrect Answers': Array.isArray(q.incorrect_answers) 
-        ? q.incorrect_answers.join('|') 
-        : q.incorrect_answers,
-      'Times Used': q.times_used,
-      'Success Rate': q.success_rate + '%',
-      'Status': q.is_flagged ? 'Flagged' : (q.is_custom ? 'Custom' : 'Active')
-    }));
-  }
-
-  // Export prize winners - FIXED to use correct column names
-  async exportPrizeWinners(filters) {
-    const period = filters.period || 'weekly';
-    const type = filters.type || 'time-based';
-
-    if (type === 'time-based') {
-      // Get highest scorer for the period
-      const winners = await db('leaderboards as l')
-        .join('player_profiles as pp', 'l.player_profile_id', 'pp.id')
-        .where('l.period_type', period)
-        .where('l.rank_position', 1)
-        .select(
-          'pp.nickname',
-          'pp.email',
-          'pp.real_name',
-          'l.total_score',
-          'l.period_start',
-          'l.created_at as submitted_at'
-        )
-        .orderBy('l.period_start', 'desc');
-
-      return winners.map(winner => ({
-        'Period': period.charAt(0).toUpperCase() + period.slice(1),
-        'Period Start': new Date(winner.period_start).toLocaleDateString(),
-        'Winner': winner.nickname,
-        'Real Name': winner.real_name || '',
-        'Email': winner.email || '',
-        'Score': winner.total_score,
-        'Date Achieved': new Date(winner.submitted_at).toLocaleDateString()
-      }));
-    } else {
-      // Get threshold achievers
-      const winners = await db('leaderboards as l')
-        .join('player_profiles as pp', 'l.player_profile_id', 'pp.id')
-        .where('l.period_type', 'weekly')
-        .where('l.total_score', '>=', 8500)
-        .select(
-          'pp.nickname',
-          'pp.email',
-          'pp.real_name',
-          'l.total_score',
-          'l.period_start',
-          'l.created_at as submitted_at'
-        )
-        .orderBy('l.created_at as submitted_at', 'desc');
-
-      return winners.map(winner => ({
-        'Week Start': new Date(winner.period_start).toLocaleDateString(),
-        'Player': winner.nickname,
-        'Real Name': winner.real_name || '',
-        'Email': winner.email || '',
-        'Score': winner.total_score,
-        'Achievement Date': new Date(winner.submitted_at).toLocaleDateString()
-      }));
-    }
-  }
-
-  // Export analytics data
-  async exportAnalytics(filters) {
-    const startDate = filters.startDate || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const endDate = filters.endDate || new Date();
-
-    const analytics = await db('sessions as s')
-      .leftJoin(
-        db('players')
-          .select('session_id')
-          .count('* as player_count')
-          .groupBy('session_id')
-          .as('p'),
-        's.id', 'p.session_id'
-      )
-      .where('s.created_at', '>=', startDate)
-      .where('s.created_at', '<=', endDate)
-      .select(
-        's.id',
-        's.room_code',
-        's.created_at',
-        's.host_id',
-        db.raw('COALESCE(p.player_count, 0) as player_count')
-      )
-      .orderBy('s.created_at', 'desc');
-
-    return analytics.map(session => ({
-      'Session ID': session.id,
-      'Room Code': session.room_code,
-      'Date': new Date(session.created_at).toLocaleDateString(),
-      'Time': new Date(session.created_at).toLocaleTimeString(),
-      'Host ID': session.host_id,
-      'Player Count': session.player_count
-    }));
-  }
-
-  // Convert data to CSV
-  async convertToCSV(data) {
-    return new Promise((resolve, reject) => {
-      csv(data, { header: true }, (err, output) => {
-        if (err) reject(err);
-        else resolve(output);
-      });
-    });
-  }
-
-  // Upload to S3 (optional)
-  async uploadToS3(key, data, contentType) {
-    if (!this.useS3) return;
-    
-    const params = {
-      Bucket: this.bucket,
-      Key: key,
-      Body: data,
-      ContentType: contentType
-    };
-
-    return this.s3.upload(params).promise();
-  }
-
-  // Get export status - FIXED to use correct column names
-  async getExportStatus(exportId, userId) {
+  /**
+   * Process an export
+   */
+  async processExport(exportId) {
     const exportRecord = await db('exports')
       .where('id', exportId)
-      .where('user_id', userId)  // Changed from created_by
-      .first();
-
-    return exportRecord;
-  }
-
-  // Get export for download - FIXED
-  async getExport(exportId, userId) {
-    const exportRecord = await db('exports')
-      .where('id', exportId)
-      .where('user_id', userId)  // Changed from created_by
-      .where('status', 'completed')
-      .first();
-
-    return exportRecord;
-  }
-
-  // Get download info
-  async getDownloadInfo(exportId) {
-    const exportRecord = await db('exports')
-      .where('id', exportId)
-      .first();
-
-    if (!exportRecord || !exportRecord.file_path) {
-      throw new Error('Export not found or not ready');
-    }
-
-    if (this.useS3 && exportRecord.file_path.startsWith('exports/')) {
-      // Generate presigned URL
-      const url = await this.s3.getSignedUrlPromise('getObject', {
-        Bucket: this.bucket,
-        Key: exportRecord.file_path,
-        Expires: 300 // 5 minutes
-      });
-
-      return {
-        url,
-        filename: exportRecord.file_path.split('/').pop(),
-        contentType: 'text/csv'
-      };
-    } else {
-      // Return local file info
-      return {
-        url: null,
-        filename: exportRecord.file_path.split('/').pop(),
-        contentType: 'text/csv',
-        filePath: exportRecord.file_path
-      };
-    }
-  }
-
-  // List exports for a user - FIXED
-  async listExports(userId, options = {}) {
-    const { page = 1, limit = 20 } = options;
-    const offset = (page - 1) * limit;
-
-    const exports = await db('exports')
-      .where('user_id', userId)  // Changed from created_by
-      .orderBy('created_at', 'desc')
-      .limit(limit)
-      .offset(offset);
-
-    const total = await db('exports')
-      .where('user_id', userId)  // Changed from created_by
-      .count('id as count');
-
-    return {
-      exports: exports.map(exp => ({
-        ...exp,
-        filters: exp.filters ? JSON.parse(exp.filters) : {}
-      })),
-      pagination: {
-        page,
-        limit,
-        total: parseInt(total[0].count),
-        pages: Math.ceil(total[0].count / limit)
-      }
-    };
-  }
-
-  // Delete export - FIXED
-  async deleteExport(exportId, userId) {
-    const exportRecord = await db('exports')
-      .where('id', exportId)
-      .where('user_id', userId)  // Changed from created_by
       .first();
 
     if (!exportRecord) {
-      return false;
+      throw new Error(`Export ${exportId} not found`);
     }
 
-    // Delete from S3 if exists
-    if (this.useS3 && exportRecord.file_path && exportRecord.file_path.startsWith('exports/')) {
-      try {
-        await this.s3.deleteObject({
-          Bucket: this.bucket,
-          Key: exportRecord.file_path
-        }).promise();
-      } catch (error) {
-        console.error('Error deleting from S3:', error);
+    try {
+      // Update status to processing
+      await db('exports')
+        .where('id', exportId)
+        .update({ 
+          status: 'processing',
+          updated_at: db.fn.now()
+        });
+
+      // Get data based on type
+      const data = await this.fetchExportData(
+        exportRecord.type, 
+        JSON.parse(exportRecord.filters)
+      );
+
+      // Generate CSV file
+      const filePath = await this.generateCSV(exportId, exportRecord.type, data);
+
+      // Upload to S3
+      const fileUrl = await this.uploadToS3(exportId, exportRecord.type, filePath);
+
+      // Get file stats
+      const stats = await fs.stat(filePath);
+
+      // Update export record
+      await db('exports')
+        .where('id', exportId)
+        .update({
+          status: 'completed',
+          file_url: fileUrl,
+          file_path: fileUrl, // Keep both for compatibility
+          file_size: stats.size,
+          row_count: data.length,
+          completed_at: db.fn.now(),
+          updated_at: db.fn.now()
+        });
+
+      // Clean up local file
+      await fs.unlink(filePath);
+
+      logger.info(`Export ${exportId} completed successfully`);
+
+    } catch (error) {
+      logger.error(`Export ${exportId} failed:`, error);
+      
+      await db('exports')
+        .where('id', exportId)
+        .update({
+          status: 'failed',
+          error_message: error.message,
+          updated_at: db.fn.now()
+        });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Estimate row count for an export
+   */
+  async estimateRowCount(type, filters) {
+    let query;
+
+    switch (type) {
+      case 'players':
+        query = db('player_profiles');
+        if (filters.registered_only) {
+          query = query.whereNotNull('email');
+        }
+        if (filters.marketing_consent) {
+          query = query.where('marketing_consent', true);
+        }
+        break;
+
+      case 'leaderboards':
+        query = db('leaderboards');
+        if (filters.period) {
+          query = query.where('period_type', filters.period);
+        }
+        if (filters.period_start) {
+          query = query.where('period_start', filters.period_start);
+        }
+        break;
+
+      case 'questions':
+        query = db('questions');
+        if (filters.difficulty) {
+          query = query.where('difficulty', filters.difficulty);
+        }
+        if (filters.category) {
+          query = query.where('category', filters.category);
+        }
+        if (filters.status) {
+          query = query.where('status', filters.status);
+        }
+        break;
+
+      case 'marketing_list':
+        query = db('player_profiles')
+          .where('marketing_consent', true)
+          .whereNotNull('email');
+        break;
+
+      case 'prize_winners':
+        // This table might not exist yet, so handle gracefully
+        const tableExists = await db.schema.hasTable('prize_winners');
+        if (!tableExists) {
+          return 0;
+        }
+        query = db('prize_winners');
+        if (filters.period) {
+          query = query.where('period_type', filters.period);
+        }
+        if (filters.claimed !== undefined) {
+          query = query.where('claimed', filters.claimed);
+        }
+        break;
+
+      default:
+        return 0;
+    }
+
+    const result = await query.count('* as count').first();
+    return parseInt(result.count);
+  }
+
+  /**
+   * Fetch data for export
+   */
+  async fetchExportData(type, filters) {
+    switch (type) {
+      case 'players':
+        return this.fetchPlayers(filters);
+      case 'leaderboards':
+        return this.fetchLeaderboards(filters);
+      case 'questions':
+        return this.fetchQuestions(filters);
+      case 'marketing_list':
+        return this.fetchMarketingList(filters);
+      case 'prize_winners':
+        return this.fetchPrizeWinners(filters);
+      default:
+        throw new Error(`Unknown export type: ${type}`);
+    }
+  }
+
+  async fetchPlayers(filters) {
+    let query = db('player_profiles as pp')
+      .leftJoin('scores as s', 'pp.id', 's.player_profile_id')
+      .select(
+        'pp.id',
+        'pp.email',
+        'pp.real_name',
+        'pp.nickname',
+        'pp.marketing_consent',
+        'pp.created_at',
+        db.raw('COUNT(DISTINCT s.session_id) as games_played'),
+        db.raw('MAX(s.score) as highest_score'),
+        db.raw('AVG(s.score)::INTEGER as average_score')
+      )
+      .groupBy('pp.id');
+
+    if (filters.registered_only) {
+      query = query.whereNotNull('pp.email');
+    }
+    if (filters.marketing_consent) {
+      query = query.where('pp.marketing_consent', true);
+    }
+    if (filters.created_after) {
+      query = query.where('pp.created_at', '>=', filters.created_after);
+    }
+    if (filters.created_before) {
+      query = query.where('pp.created_at', '<=', filters.created_before);
+    }
+
+    return query;
+  }
+
+  async fetchLeaderboards(filters) {
+    let query = db('leaderboards as l')
+      .join('player_profiles as pp', 'l.player_profile_id', 'pp.id')
+      .select(
+        'l.rank',
+        'pp.nickname',
+        'pp.email',
+        'l.score',
+        'l.period_type',
+        'l.period_start',
+        'l.submitted_at'
+      )
+      .orderBy(['l.period_type', 'l.period_start', 'l.rank']);
+
+    if (filters.period) {
+      query = query.where('l.period_type', filters.period);
+    }
+    if (filters.period_start) {
+      query = query.where('l.period_start', filters.period_start);
+    }
+    if (filters.top_n) {
+      query = query.where('l.rank', '<=', filters.top_n);
+    }
+
+    return query;
+  }
+
+  async fetchQuestions(filters) {
+    let query = db('questions')
+      .select(
+        'id',
+        'question',
+        'correct_answer',
+        'incorrect_answers',
+        'category',
+        'difficulty',
+        'times_used',
+        'success_rate',
+        'status',
+        'created_at'
+      );
+
+    if (filters.difficulty) {
+      query = query.where('difficulty', filters.difficulty);
+    }
+    if (filters.category) {
+      query = query.where('category', filters.category);
+    }
+    if (filters.status) {
+      query = query.where('status', filters.status);
+    }
+    if (filters.search) {
+      query = query.where('question', 'ILIKE', `%${filters.search}%`);
+    }
+
+    return query;
+  }
+
+  async fetchMarketingList(filters) {
+    let query = db('player_profiles')
+      .select(
+        'email',
+        'real_name',
+        'nickname',
+        'created_at',
+        db.raw(`CASE WHEN last_played > NOW() - INTERVAL '30 days' 
+                THEN 'active' ELSE 'inactive' END as status`)
+      )
+      .where('marketing_consent', true)
+      .whereNotNull('email');
+
+    if (filters.active_only) {
+      query = query.where('last_played', '>', db.raw("NOW() - INTERVAL '30 days'"));
+    }
+
+    return query;
+  }
+
+  async fetchPrizeWinners(filters) {
+    // Check if prize_winners table exists
+    const tableExists = await db.schema.hasTable('prize_winners');
+    if (!tableExists) {
+      return [];
+    }
+
+    let query = db('prize_winners as pw')
+      .join('player_profiles as pp', 'pw.player_profile_id', 'pp.id')
+      .leftJoin('prizes as p', 'pw.prize_id', 'p.id')
+      .select(
+        'pp.email',
+        'pp.real_name',
+        'pp.nickname',
+        'pw.period_type',
+        'pw.period_start',
+        'pw.score',
+        'pw.prize_type',
+        'p.name as prize_name',
+        'p.description as prize_description',
+        'pw.claimed',
+        'pw.claimed_at',
+        'pw.created_at'
+      );
+
+    if (filters.period) {
+      query = query.where('pw.period_type', filters.period);
+    }
+    if (filters.claimed !== undefined) {
+      query = query.where('pw.claimed', filters.claimed);
+    }
+    if (filters.date_from) {
+      query = query.where('pw.created_at', '>=', filters.date_from);
+    }
+    if (filters.date_to) {
+      query = query.where('pw.created_at', '<=', filters.date_to);
+    }
+
+    return query;
+  }
+
+  /**
+   * Generate CSV file
+   */
+  async generateCSV(exportId, type, data) {
+    const tempDir = path.join(__dirname, '../temp');
+    await fs.mkdir(tempDir, { recursive: true });
+    
+    const filePath = path.join(tempDir, `${exportId}.csv`);
+    
+    // Define headers based on type
+    const headers = this.getCSVHeaders(type);
+    
+    const csvWriter = csv({
+      path: filePath,
+      header: headers
+    });
+
+    // Transform data if needed
+    const records = data.map(row => {
+      if (type === 'questions' && row.incorrect_answers) {
+        row.incorrect_answers = JSON.stringify(row.incorrect_answers);
       }
+      return row;
+    });
+
+    await csvWriter.writeRecords(records);
+    return filePath;
+  }
+
+  getCSVHeaders(type) {
+    const headerMappings = {
+      players: [
+        { id: 'id', title: 'Player ID' },
+        { id: 'email', title: 'Email' },
+        { id: 'real_name', title: 'Real Name' },
+        { id: 'nickname', title: 'Nickname' },
+        { id: 'marketing_consent', title: 'Marketing Consent' },
+        { id: 'games_played', title: 'Games Played' },
+        { id: 'highest_score', title: 'Highest Score' },
+        { id: 'average_score', title: 'Average Score' },
+        { id: 'created_at', title: 'Joined Date' }
+      ],
+      leaderboards: [
+        { id: 'rank', title: 'Rank' },
+        { id: 'nickname', title: 'Nickname' },
+        { id: 'email', title: 'Email' },
+        { id: 'score', title: 'Score' },
+        { id: 'period_type', title: 'Period' },
+        { id: 'period_start', title: 'Period Start' },
+        { id: 'submitted_at', title: 'Submitted At' }
+      ],
+      questions: [
+        { id: 'id', title: 'Question ID' },
+        { id: 'question', title: 'Question' },
+        { id: 'correct_answer', title: 'Correct Answer' },
+        { id: 'incorrect_answers', title: 'Incorrect Answers (JSON)' },
+        { id: 'category', title: 'Category' },
+        { id: 'difficulty', title: 'Difficulty' },
+        { id: 'times_used', title: 'Times Used' },
+        { id: 'success_rate', title: 'Success Rate' },
+        { id: 'status', title: 'Status' },
+        { id: 'created_at', title: 'Created Date' }
+      ],
+      marketing_list: [
+        { id: 'email', title: 'Email' },
+        { id: 'real_name', title: 'Real Name' },
+        { id: 'nickname', title: 'Nickname' },
+        { id: 'status', title: 'Status' },
+        { id: 'created_at', title: 'Joined Date' }
+      ],
+      prize_winners: [
+        { id: 'email', title: 'Email' },
+        { id: 'real_name', title: 'Real Name' },
+        { id: 'nickname', title: 'Nickname' },
+        { id: 'period_type', title: 'Period Type' },
+        { id: 'period_start', title: 'Period Start' },
+        { id: 'score', title: 'Winning Score' },
+        { id: 'prize_type', title: 'Prize Type' },
+        { id: 'prize_name', title: 'Prize Name' },
+        { id: 'prize_description', title: 'Prize Description' },
+        { id: 'claimed', title: 'Claimed' },
+        { id: 'claimed_at', title: 'Claimed Date' },
+        { id: 'created_at', title: 'Won Date' }
+      ]
+    };
+
+    return headerMappings[type] || [];
+  }
+
+  /**
+   * Upload file to S3
+   */
+  async uploadToS3(exportId, type, filePath) {
+    const fileContent = await fs.readFile(filePath);
+    const fileName = `exports/${type}/${exportId}.csv`;
+
+    const params = {
+      Bucket: this.bucket,
+      Key: fileName,
+      Body: fileContent,
+      ContentType: 'text/csv',
+      ContentDisposition: `attachment; filename="${type}-export-${new Date().toISOString().split('T')[0]}.csv"`
+    };
+
+    const result = await this.s3.upload(params).promise();
+    return result.Location;
+  }
+
+  /**
+   * Get export status
+   */
+  async getExportStatus(exportId) {
+    return db('exports')
+      .where('id', exportId)
+      .first();
+  }
+
+  /**
+   * List exports for a user
+   */
+  async listExports(userId, limit = 50) {
+    return db('exports')
+      .select(
+        'id',
+        'type',
+        'status',
+        'filters',
+        'file_url',
+        'file_size',
+        'row_count',
+        'error_message',
+        'created_at',
+        'completed_at'
+      )
+      .where('user_id', userId)
+      .orderBy('created_at', 'desc')
+      .limit(limit);
+  }
+
+  /**
+   * Generate signed download URL
+   */
+  async getDownloadUrl(exportId, userId) {
+    const exportRecord = await db('exports')
+      .where('id', exportId)
+      .where('user_id', userId)
+      .first();
+
+    if (!exportRecord || exportRecord.status !== 'completed') {
+      return null;
+    }
+
+    // Generate a signed URL valid for 1 hour
+    const key = exportRecord.file_url.split('.com/')[1];
+    const params = {
+      Bucket: this.bucket,
+      Key: key,
+      Expires: 3600 // 1 hour
+    };
+
+    return this.s3.getSignedUrl('getObject', params);
+  }
+
+  /**
+   * Delete an export
+   */
+  async deleteExport(exportId, userId) {
+    const exportRecord = await db('exports')
+      .where('id', exportId)
+      .where('user_id', userId)
+      .first();
+
+    if (!exportRecord) {
+      throw new Error('Export not found');
+    }
+
+    // Delete from S3 if file exists
+    if (exportRecord.file_url) {
+      const key = exportRecord.file_url.split('.com/')[1];
+      await this.s3.deleteObject({
+        Bucket: this.bucket,
+        Key: key
+      }).promise();
     }
 
     // Delete from database
