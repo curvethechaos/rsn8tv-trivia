@@ -59,13 +59,13 @@ const {
   prizeServiceWrapper,
   exportServiceWrapper
 } = require('./services/serviceWrappers');
-
-// Extend services with wrapper methods if needed
-Object.assign(questionService, questionServiceWrapper);
-Object.assign(themeService, themeServiceWrapper);
-Object.assign(brandingService, brandingServiceWrapper);
-Object.assign(prizeService, prizeServiceWrapper);
-Object.assign(exportService, exportServiceWrapper);
+// 
+// // Extend services with wrapper methods if needed
+// Object.assign(questionService, questionServiceWrapper);
+// Object.assign(themeService, themeServiceWrapper);
+// Object.assign(brandingService, brandingServiceWrapper);
+// Object.assign(prizeService, prizeServiceWrapper);
+// Object.assign(exportService, exportServiceWrapper);
 
 // Expose services via app.locals
 app.locals.db = db;

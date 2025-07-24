@@ -76,7 +76,7 @@ class ExportService {
       // Get data based on type
       const data = await this.fetchExportData(
         exportRecord.type, 
-        JSON.parse(exportRecord.filters)
+        typeof exportRecord.filters === "string" ? JSON.parse(exportRecord.filters) : exportRecord.filters
       );
 
       // Generate CSV file

@@ -1,0 +1,224 @@
+<div id="players-tab" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <h2>Player Management</h2>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="loadPlayers()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                    </svg>
+                    Refresh
+                </button>
+                <button class="btn btn-secondary" onclick="exportPlayers()">Export CSV</button>
+                <button class="btn btn-secondary" onclick="exportMarketingList()">Export Marketing List</button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <!-- Statistics -->
+            <div class="player-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-content">
+                        <h4>Total Players</h4>
+                        <p class="stat-value" id="stat-total-players">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-content">
+                        <h4>Registered Today</h4>
+                        <p class="stat-value" id="stat-registered-today">0</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">✉️</div>
+                    <div class="stat-content">
+                        <h4>With Email</h4>
+                        <p class="stat-value" id="stat-with-email">0</p>
+                        <p class="stat-percent" id="stat-email-percent">0%</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📧</div>
+                    <div class="stat-content">
+                        <h4>Marketing Consent</h4>
+                        <p class="stat-value" id="stat-marketing-consent">0</p>
+                        <p class="stat-percent" id="stat-marketing-percent">0%</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Filters -->
+            <div class="filters-section">
+                <div class="filter-group">
+                    <input type="text" id="player-search" placeholder="Search by nickname, email, or name..." class="search-input" onkeyup="debouncePlayerSearch()">
+                </div>
+                <div class="filter-group">
+                    <select id="player-status-filter" class="filter-select" onchange="loadPlayers()">
+                        <option value="">All Players</option>
+                        <option value="registered">Registered Only</option>
+                        <option value="temporary">Temporary Only</option>
+                        <option value="marketing">Marketing Consent</option>
+                        <option value="prize_eligible">Prize Eligible (8500+ score)</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Date Range:</label>
+                    <input type="date" id="date-from" class="date-input" onchange="loadPlayers()">
+                    <span>to</span>
+                    <input type="date" id="date-to" class="date-input" onchange="loadPlayers()">
+                </div>
+            </div>
+            
+            <!-- Bulk Actions -->
+            <div class="bulk-actions" id="bulk-actions" style="display: none;">
+                <span id="selected-count">0 selected</span>
+                <button class="btn btn-sm" onclick="bulkExport()">Export Selected</button>
+                <button class="btn btn-sm" onclick="bulkEmail()">Email Selected</button>
+                <button class="btn btn-sm btn-danger" onclick="bulkDelete()">Delete Selected</button>
+            </div>
+            
+            <!-- Players Table -->
+            <div class="table-container">
+                <table class="data-table" id="players-table">
+                    <thead>
+                        <tr>
+                            <th width="3%">
+                                <input type="checkbox" id="select-all-players" onchange="toggleSelectAll()">
+                            </th>
+                            <th width="5%">ID</th>
+                            <th width="20%">Nickname</th>
+                            <th width="20%">Email</th>
+                            <th width="15%">Real Name</th>
+                            <th width="10%">Games</th>
+                            <th width="10%">Total Score</th>
+                            <th width="12%">Registered</th>
+                            <th width="15%">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="players-tbody">
+                        <tr>
+                            <td colspan="9" class="text-center">Loading players...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div class="pagination">
+                <button class="btn btn-sm" onclick="changePlayerPage(-1)" id="prev-player-page">Previous</button>
+                <span id="player-page-info">Page 1 of 1</span>
+                <button class="btn btn-sm" onclick="changePlayerPage(1)" id="next-player-page">Next</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Player Details Modal -->
+    <div id="player-details-modal" class="modal" style="display: none;">
+        <div class="modal-content large-modal">
+            <div class="modal-header">
+                <h2>Player Details</h2>
+                <button class="close-btn" onclick="closePlayerModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="player-detail-grid">
+                    <!-- Profile Section -->
+                    <div class="detail-section">
+                        <h3>Profile Information</h3>
+                        <div class="detail-content" id="player-profile-info">
+                            Loading...
+                        </div>
+                    </div>
+                    
+                    <!-- Statistics Section -->
+                    <div class="detail-section">
+                        <h3>Game Statistics</h3>
+                        <div class="detail-content" id="player-stats-info">
+                            Loading...
+                        </div>
+                    </div>
+                    
+                    <!-- Recent Games Section -->
+                    <div class="detail-section full-width">
+                        <h3>Recent Games</h3>
+                        <div class="detail-content">
+                            <table class="mini-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Room Code</th>
+                                        <th>Score</th>
+                                        <th>Rank</th>
+                                        <th>Players</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="player-games-tbody">
+                                    <tr>
+                                        <td colspan="5">Loading games...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- Achievements Section -->
+                    <div class="detail-section">
+                        <h3>Achievements</h3>
+                        <div class="detail-content" id="player-achievements">
+                            Loading...
+                        </div>
+                    </div>
+                    
+                    <!-- Admin Actions -->
+                    <div class="detail-section">
+                        <h3>Admin Actions</h3>
+                        <div class="detail-content">
+                            <button class="btn btn-sm" onclick="editPlayer()">Edit Profile</button>
+                            <button class="btn btn-sm" onclick="sendPlayerEmail()">Send Email</button>
+                            <button class="btn btn-sm" onclick="viewPlayerDevices()">View Devices</button>
+                            <button class="btn btn-sm btn-danger" onclick="deletePlayer()">Delete Player</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Player Modal -->
+    <div id="edit-player-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Player</h2>
+                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-player-form">
+                    <div class="form-group">
+                        <label>Nickname</label>
+                        <input type="text" id="edit-nickname" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="edit-email">
+                    </div>
+                    <div class="form-group">
+                        <label>Real Name</label>
+                        <input type="text" id="edit-real-name">
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="edit-marketing-consent">
+                            Marketing Consent
+                        </label>
+                    </div>
+                    <input type="hidden" id="edit-player-id">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="savePlayerEdits()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>

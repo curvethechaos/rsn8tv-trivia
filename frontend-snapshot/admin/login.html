@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSN8TV Admin Login</title>
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="login-page">
+    <div class="login-container">
+        <div class="login-header">
+            <h1>RSN8TV Admin</h1>
+            <p>Sign in to access the admin dashboard</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username" 
+                    required 
+                    autocomplete="username"
+                    placeholder="Enter your username"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input 
+                    type="password" 
+                    id="password" 
+                    name="password" 
+                    required 
+                    autocomplete="current-password"
+                    placeholder="Enter your password"
+                >
+            </div>
+
+            <button type="submit" class="login-button" id="loginButton">
+                Sign In
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const API_BASE = 'https://trivia.rsn8tv.com/api';
+        
+        // Check if already logged in
+        if (localStorage.getItem('authToken')) {
+            window.location.href = '/admin/monitoring/dashboard.html';
+        }
+
+        // Handle form submission
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loginButton = document.getElementById('loginButton');
+            
+            // Clear previous errors
+            errorDiv.classList.remove('show');
+            
+            // Disable button and show loading
+            loginButton.disabled = true;
+            loginButton.innerHTML = 'Signing in<span class="loading"></span>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    // Store tokens
+                    localStorage.setItem('authToken', result.data.accessToken);
+                    localStorage.setItem('refreshToken', result.data.refreshToken);
+                    localStorage.setItem('user', JSON.stringify(result.data.user));
+                    
+                    // Redirect to dashboard
+                    window.location.href = '/admin/monitoring/dashboard.html';
+                } else {
+                    // Show error
+                    errorDiv.textContent = result.error || 'Invalid credentials';
+                    errorDiv.classList.add('show');
+                    
+                    // Re-enable button
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Sign In';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorDiv.textContent = 'Connection error. Please try again.';
+                errorDiv.classList.add('show');
+                
+                // Re-enable button
+                loginButton.disabled = false;
+                loginButton.textContent = 'Sign In';
+            }
+        });
+        
+        // Focus on username field
+        document.getElementById('username').focus();
+    </script>
+</body>
+</html>

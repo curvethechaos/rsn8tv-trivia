@@ -1,0 +1,32 @@
+<div id="analytics-tab" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <h2>Analytics Dashboard</h2>
+            <div class="header-actions">
+                <input type="date" id="analytics-start-date">
+                <input type="date" id="analytics-end-date">
+                <button class="btn btn-primary" onclick="loadAnalytics()">Update</button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Games Over Time</h3>
+                    <canvas id="games-analytics-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Average Scores</h3>
+                    <canvas id="scores-analytics-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Category Performance</h3>
+                    <canvas id="category-analytics-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Player Engagement</h3>
+                    <canvas id="engagement-analytics-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

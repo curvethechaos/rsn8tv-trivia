@@ -1,0 +1,11 @@
+/* tabs/prizes/prizes.css */
+
+.prizes-tab {
+    padding: 0;
+}
+
+.card-body {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}

@@ -1,0 +1,197 @@
+<div id="theme-tab" class="tab-content">
+    <div class="card">
+        <div class="card-header">
+            <h2>Theme Editor</h2>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="resetTheme()">Reset to Default</button>
+                <button class="btn btn-primary" onclick="saveTheme()">Save Theme</button>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <div class="theme-editor-grid">
+                <!-- Color Settings -->
+                <div class="theme-section">
+                    <h3>Colors</h3>
+                    <div class="color-grid">
+                        <div class="color-input-group">
+                            <label>Primary Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-primary" value="#4dd0e1">
+                                <input type="text" id="color-primary-text" value="#4dd0e1" onchange="updateColorFromText('primary')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Secondary Color</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-secondary" value="#ff6b6b">
+                                <input type="text" id="color-secondary-text" value="#ff6b6b" onchange="updateColorFromText('secondary')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Background</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-background" value="#1a1a2e">
+                                <input type="text" id="color-background-text" value="#1a1a2e" onchange="updateColorFromText('background')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Surface</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-surface" value="#16213e">
+                                <input type="text" id="color-surface-text" value="#16213e" onchange="updateColorFromText('surface')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Text Primary</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-text" value="#ffffff">
+                                <input type="text" id="color-text-text" value="#ffffff" onchange="updateColorFromText('text')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Text Secondary</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-textSecondary" value="#b8b8b8">
+                                <input type="text" id="color-textSecondary-text" value="#b8b8b8" onchange="updateColorFromText('textSecondary')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Success</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-success" value="#4caf50">
+                                <input type="text" id="color-success-text" value="#4caf50" onchange="updateColorFromText('success')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Error</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-error" value="#f44336">
+                                <input type="text" id="color-error-text" value="#f44336" onchange="updateColorFromText('error')">
+                            </div>
+                        </div>
+                        <div class="color-input-group">
+                            <label>Warning</label>
+                            <div class="color-input-wrapper">
+                                <input type="color" id="color-warning" value="#ff9800">
+                                <input type="text" id="color-warning-text" value="#ff9800" onchange="updateColorFromText('warning')">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Color Presets -->
+                    <div class="color-presets">
+                        <h4>Quick Presets</h4>
+                        <div class="preset-buttons">
+                            <button class="preset-btn" onclick="applyPreset('default')">Default</button>
+                            <button class="preset-btn" onclick="applyPreset('dark')">Dark Mode</button>
+                            <button class="preset-btn" onclick="applyPreset('neon')">Neon</button>
+                            <button class="preset-btn" onclick="applyPreset('ocean')">Ocean</button>
+                            <button class="preset-btn" onclick="applyPreset('sunset')">Sunset</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Typography Settings -->
+                <div class="theme-section">
+                    <h3>Typography</h3>
+                    <div class="font-settings">
+                        <div class="form-group">
+                            <label>Primary Font</label>
+                            <select id="font-primary" class="font-select" onchange="updatePreview()">
+                                <option value="Inter, sans-serif">Inter</option>
+                                <option value="Roboto, sans-serif">Roboto</option>
+                                <option value="Open Sans, sans-serif">Open Sans</option>
+                                <option value="Lato, sans-serif">Lato</option>
+                                <option value="Montserrat, sans-serif">Montserrat</option>
+                                <option value="system-ui, sans-serif">System Default</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Heading Font</label>
+                            <select id="font-heading" class="font-select" onchange="updatePreview()">
+                                <option value="Poppins, sans-serif">Poppins</option>
+                                <option value="Playfair Display, serif">Playfair Display</option>
+                                <option value="Bebas Neue, cursive">Bebas Neue</option>
+                                <option value="Raleway, sans-serif">Raleway</option>
+                                <option value="Oswald, sans-serif">Oswald</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Monospace Font</label>
+                            <select id="font-mono" class="font-select" onchange="updatePreview()">
+                                <option value="JetBrains Mono, monospace">JetBrains Mono</option>
+                                <option value="Fira Code, monospace">Fira Code</option>
+                                <option value="Source Code Pro, monospace">Source Code Pro</option>
+                                <option value="Consolas, monospace">Consolas</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Effects Settings -->
+                <div class="theme-section">
+                    <h3>Visual Effects</h3>
+                    <div class="effects-settings">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="effect-blur" checked onchange="updatePreview()">
+                            <span>Blur Effects</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="effect-animations" checked onchange="updatePreview()">
+                            <span>Animations</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="effect-particles" onchange="updatePreview()">
+                            <span>Particle Effects</span>
+                        </label>
+                        <label class="toggle-label">
+                            <input type="checkbox" id="effect-sounds" checked onchange="updatePreview()">
+                            <span>Sound Effects</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Layout Settings -->
+                <div class="theme-section">
+                    <h3>Layout</h3>
+                    <div class="layout-settings">
+                        <div class="form-group">
+                            <label>Border Radius</label>
+                            <input type="range" id="border-radius" min="0" max="20" value="8" onchange="updatePreview()">
+                            <span id="border-radius-value">8px</span>
+                        </div>
+                        <div class="form-group">
+                            <label>Spacing</label>
+                            <select id="spacing" onchange="updatePreview()">
+                                <option value="compact">Compact</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="comfortable">Comfortable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Content Density</label>
+                            <select id="density" onchange="updatePreview()">
+                                <option value="dense">Dense</option>
+                                <option value="comfortable" selected>Comfortable</option>
+                                <option value="spacious">Spacious</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Live Preview -->
+            <div class="theme-preview-section">
+                <h3>Live Preview</h3>
+                <div class="preview-tabs">
+                    <button class="preview-tab active" onclick="switchPreview('player')">Player View</button>
+                    <button class="preview-tab" onclick="switchPreview('host')">Host View</button>
+                </div>
+                <div class="preview-container" id="preview-container">
+                    <iframe id="preview-frame" src="/trivia/preview.html?mode=player" frameborder="0"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

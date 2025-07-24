@@ -107,6 +107,3 @@ module.exports = new AuthMiddleware();
 const authenticateAdmin = jwt;
 
 // Export middleware functions
-module.exports = jwt;
-module.exports.authMiddleware = jwt;
-module.exports.authenticateAdmin = authenticateAdmin;

@@ -1,0 +1,40 @@
+/* tabs/schedule/schedule.css */
+
+.schedule-tab {
+    padding: 0;
+}
+
+.card-body {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.calendar-container {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+.scheduled-games {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 20px;
+}
+
+/* Settings */
+.settings-sections {
+    display: grid;
+    gap: 30px;
+}
+
+.settings-section {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+    padding: 25px;
+}
+
+.settings-section h3 {
+    margin-bottom: 20px;
+    color: #4dd0e1;
+}

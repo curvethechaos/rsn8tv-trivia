@@ -135,7 +135,7 @@ echo "7. Testing Question Routes"
 echo "-------------------------"
 test_endpoint "GET" "/admin/questions?page=1&limit=10" "Questions List"
 test_endpoint "GET" "/admin/questions/categories" "Question Categories"
-test_endpoint "GET" "/admin/questions/template" "CSV Template"
+test_endpoint "GET" "/admin/questions/csv-template" "CSV Template"
 
 # Step 8: Test Prize Routes
 echo "8. Testing Prize Routes"

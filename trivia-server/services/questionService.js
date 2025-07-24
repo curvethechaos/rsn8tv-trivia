@@ -47,22 +47,16 @@ class QuestionService {
     const offset = (page - 1) * limit;
 
     // Build query with statistics
-    let query = db('questions as q')
+    let query = db('question_cache as q')
       .leftJoin(
         db('question_responses')
           .select('question_id')
           .count('* as times_used')
-          .sum(db.raw('CASE WHEN is_correct THEN 1 ELSE 0 END as correct_count'))
+          .select(db.raw('sum(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count'))
           .groupBy('question_id')
           .as('stats'),
         'q.id', 'stats.question_id'
       )
-      .select(
-        'q.*',
-        db.raw('COALESCE(stats.times_used, 0) as times_used'),
-        db.raw('CASE WHEN stats.times_used > 0 THEN ROUND((stats.correct_count::numeric / stats.times_used) * 100, 2) ELSE 0 END as success_rate')
-      );
-
     // Apply filters
     if (difficulty && difficulty !== 'all') {
       query = query.where('q.difficulty', difficulty);

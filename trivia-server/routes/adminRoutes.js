@@ -178,3 +178,39 @@ router.get('/exports', async (req, res) => {
 });
 
 module.exports = router;
+
+// Get all sessions with pagination
+router.get('/sessions', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const { page = 1, limit = 50, active } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = db('sessions').select('*');
+    
+    if (active !== undefined) {
+      query = query.where('is_active', active === 'true');
+    }
+
+    const sessions = await query
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db('sessions').count('* as total');
+
+    res.json({
+      success: true,
+      sessions,
+      total: parseInt(total),
+      page: parseInt(page),
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('Sessions error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch sessions' 
+    });
+  }
+});

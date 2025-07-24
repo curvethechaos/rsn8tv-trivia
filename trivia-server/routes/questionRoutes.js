@@ -29,9 +29,9 @@ router.get('/', [
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -172,16 +172,52 @@ router.get('/categories', async (req, res, next) => {
     next(error);
   }
 });
+// GET /api/admin/questions/template
+router.get('/csv-template', (req, res) => {
+  try {
+    const templateData = [
+      {
+        question: 'What is the capital of France?',
+        correct_answer: 'Paris',
+        incorrect_answer_1: 'London',
+        incorrect_answer_2: 'Berlin',
+        incorrect_answer_3: 'Madrid',
+        category: 'Geography',
+        difficulty: 'easy'
+      },
+      {
+        question: 'Who painted the Mona Lisa?',
+        correct_answer: 'Leonardo da Vinci',
+        incorrect_answer_1: 'Vincent van Gogh',
+        incorrect_answer_2: 'Pablo Picasso',
+        incorrect_answer_3: 'Michelangelo',
+        category: 'Art',
+        difficulty: 'medium'
+      }
+    ];
 
+    const csv = Papa.unparse(templateData);
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="questions_template.csv"');
+    res.send(csv);
+  } catch (error) {
+    console.error('Error creating template:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create template'
+    });
+  }
+});
 // GET /api/admin/questions/:id
 router.get('/:id', [
   param('id').isInt()
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -237,9 +273,9 @@ router.post('/', [
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -288,9 +324,9 @@ router.put('/:id', [
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -347,9 +383,9 @@ router.delete('/:id', [
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -399,9 +435,9 @@ router.post('/:id/flag', [
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      errors: errors.array() 
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
     });
   }
 
@@ -627,44 +663,6 @@ router.get('/export', async (req, res, next) => {
   } catch (error) {
     console.error('Error exporting questions:', error);
     next(error);
-  }
-});
-
-// GET /api/admin/questions/template
-router.get('/template', (req, res) => {
-  try {
-    const templateData = [
-      {
-        question: 'What is the capital of France?',
-        correct_answer: 'Paris',
-        incorrect_answer_1: 'London',
-        incorrect_answer_2: 'Berlin',
-        incorrect_answer_3: 'Madrid',
-        category: 'Geography',
-        difficulty: 'easy'
-      },
-      {
-        question: 'Who painted the Mona Lisa?',
-        correct_answer: 'Leonardo da Vinci',
-        incorrect_answer_1: 'Vincent van Gogh',
-        incorrect_answer_2: 'Pablo Picasso',
-        incorrect_answer_3: 'Michelangelo',
-        category: 'Art',
-        difficulty: 'medium'
-      }
-    ];
-
-    const csv = Papa.unparse(templateData);
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="questions_template.csv"');
-    res.send(csv);
-  } catch (error) {
-    console.error('Error creating template:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create template'
-    });
   }
 });
 
