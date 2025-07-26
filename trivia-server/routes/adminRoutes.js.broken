@@ -1,0 +1,540 @@
+const express = require('express');
+const router = express.Router();
+const db = require('../db/connection');
+const { authenticateAdmin } = require('../middleware/authMiddleware');
+
+// Temporarily comment out problematic service imports
+// const prizeService = new PrizeService();
+// const questionService = new QuestionService();
+// const themeService = new ThemeService();
+// const brandingService = new BrandingService();
+// const exportService = new ExportService();
+
+// Import services correctly (they're already instantiated)
+const prizeService = require('../services/prizeService');
+const questionService = require('../services/questionService');
+const themeService = require('../services/themeService');
+const brandingService = require('../services/brandingService');
+const exportService = require('../services/exportService');
+
+// Stats endpoint
+router.get('/stats', async (req, res) => {
+    try {
+        const stats = await db('sessions')
+            .select(
+                db.raw('COUNT(DISTINCT sessions.id) as total_sessions'),
+                db.raw('COUNT(DISTINCT players.id) as total_players'),
+                db.raw('COUNT(DISTINCT player_profiles.id) as registered_players')
+            )
+            .leftJoin('players', 'sessions.id', 'players.session_id')
+            .leftJoin('player_profiles', 'players.player_profile_id', 'player_profiles.id')
+            .first();
+
+        res.json({
+            success: true,
+            stats: {
+                totalSessions: parseInt(stats.total_sessions) || 0,
+                totalPlayers: parseInt(stats.total_players) || 0,
+                registeredPlayers: parseInt(stats.registered_players) || 0,
+                timestamp: new Date()
+            }
+        });
+    } catch (error) {
+        console.error('Stats error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch stats' });
+    }
+});
+
+// Questions endpoints
+router.get('/questions', async (req, res) => {
+    try {
+        if (!questionService || !questionService.getQuestions) {
+            // Fallback if service isn't available
+            const questions = await db('question_cache')
+                .select('*')
+                .orderBy('id', 'desc')
+                .limit(100);
+            
+            return res.json({
+                success: true,
+                questions,
+                totalCount: questions.length,
+                flaggedCount: 0,
+                customCount: 0
+            });
+        }
+        
+        const result = await questionService.getQuestions(req.query);
+        res.json(result);
+    } catch (error) {
+        console.error('Questions error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch questions' });
+    }
+});
+
+// Themes endpoints
+router.get('/themes', async (req, res) => {
+    try {
+        if (!themeService || !themeService.getAllThemes) {
+            // Fallback
+            const themes = await db('themes').select('*');
+            return res.json({ success: true, themes });
+        }
+        
+        const themes = await themeService.getAllThemes();
+        res.json({ success: true, themes });
+    } catch (error) {
+        console.error('Themes error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch themes' });
+    }
+});
+
+// Prize endpoints
+router.get('/prizes/time-based', async (req, res) => {
+    try {
+        if (!prizeService || !prizeService.getTimeBased) {
+            // Fallback
+            return res.json({
+                success: true,
+                prizes: {
+                    weekly: { name: 'Weekly Champion', minimum_score: 0 },
+                    monthly: { name: 'Monthly Master', minimum_score: 0 },
+                    quarterly: { name: 'Quarterly Queen/King', minimum_score: 0 },
+                    yearly: { name: 'Annual Legend', minimum_score: 0 }
+                }
+            });
+        }
+        
+        const prizes = await prizeService.getTimeBased();
+        res.json({ success: true, prizes });
+    } catch (error) {
+        console.error('Prizes error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch prizes' });
+    }
+});
+
+router.get('/prizes/threshold', async (req, res) => {
+    try {
+        if (!prizeService || !prizeService.getThreshold) {
+            // Fallback
+            return res.json({
+                success: true,
+                threshold: {
+                    score: 8500,
+                    name: 'Elite Player',
+                    description: 'Score 8,500+ points in a week'
+                }
+            });
+        }
+        
+        const threshold = await prizeService.getThreshold();
+        res.json({ success: true, threshold });
+    } catch (error) {
+        console.error('Threshold error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch threshold' });
+    }
+});
+
+// Branding endpoints
+router.get('/branding', async (req, res) => {
+    try {
+        if (!brandingService || !brandingService.getCurrentBranding) {
+            // Fallback
+            return res.json({
+                success: true,
+                branding: {
+                    main_logo_url: null,
+                    favicon_url: null,
+                    sponsor_logos: [],
+                    company_name: 'RSN8TV Trivia',
+                    tagline: 'Real-time multiplayer trivia',
+                    footer_text: '© 2025 RSN8TV. All rights reserved.'
+                }
+            });
+        }
+        
+        const branding = await brandingService.getCurrentBranding();
+        res.json({ success: true, branding });
+    } catch (error) {
+        console.error('Branding error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch branding' });
+    }
+});
+
+// Export endpoints
+router.get('/exports', async (req, res) => {
+    try {
+        if (!exportService || !exportService.listExports) {
+            // Fallback
+            return res.json({ success: true, exports: [] });
+        }
+        
+        const exports = await exportService.listExports(req.user.id);
+        res.json({ success: true, exports });
+    } catch (error) {
+        console.error('Exports error:', error);
+        res.status(500).json({ success: false, error: 'Failed to fetch exports' });
+    }
+});
+
+
+// Helper function for period date calculations
+const getPeriodDateRange = (periodType) => {
+  const now = new Date();
+  let startDate, endDate;
+  
+  switch(periodType) {
+    case 'weekly':
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday start
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+      
+    case 'monthly':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      break;
+      
+    case 'quarterly':
+      const quarter = Math.floor(now.getMonth() / 3);
+      startDate = new Date(now.getFullYear(), quarter * 3, 1);
+      endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
+      break;
+      
+    case 'yearly':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      break;
+  }
+  
+  return { startDate, endDate };
+};
+
+router.get('/players', authMiddleware, async (req, res) => {
+  try {
+    const { period, startDate, endDate, page = 1, limit = 20, search } = req.query;
+    const offset = (page - 1) * limit;
+    
+    // Determine date range
+    let dateRange = {};
+    if (period && ['weekly', 'monthly', 'quarterly', 'yearly'].includes(period)) {
+      dateRange = getPeriodDateRange(period);
+    } else if (startDate && endDate) {
+      dateRange = {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate)
+      };
+    }
+    
+    // Base query for players
+    let playersQuery = db('player_profiles')
+      .whereNotNull('nickname')
+      .orderBy('created_at', 'desc');
+    
+    // Add search if provided
+    if (search) {
+      playersQuery = playersQuery.where(function() {
+        this.where('nickname', 'ilike', `%${search}%`)
+            .orWhere('email', 'ilike', `%${search}%`);
+      });
+    }
+    
+    // Get total count for pagination
+    const totalCount = await playersQuery.clone().count('* as count').first();
+    
+    // Get players with pagination
+    const players = await playersQuery
+      .limit(limit)
+      .offset(offset)
+      .select(
+        'id',
+        'email',
+        'real_name',
+        'nickname',
+        'marketing_consent',
+        'created_at',
+        'last_played'
+      );
+    
+    // For each player, calculate scores based on date range
+    const playersWithScores = await Promise.all(players.map(async (player) => {
+      // Build scores query
+      let scoresQuery = db('scores')
+        .where('player_profile_id', player.id);
+      
+      // Apply date filter if exists
+      if (dateRange.startDate && dateRange.endDate) {
+        scoresQuery = scoresQuery
+          .where('submitted_at', '>=', dateRange.startDate)
+          .where('submitted_at', '<=', dateRange.endDate);
+      }
+      
+      // Get aggregated scores
+      const scoreStats = await scoresQuery
+        .select(
+          db.raw('COUNT(DISTINCT session_id) as games_played'),
+          db.raw('COALESCE(SUM(score), 0) as total_score'),
+          db.raw('COALESCE(MAX(score), 0) as highest_score')
+        )
+        .first();
+      
+      // If no date range, also get all-time stats
+      let allTimeStats = scoreStats;
+      if (dateRange.startDate && dateRange.endDate) {
+        allTimeStats = await db('scores')
+          .where('player_profile_id', player.id)
+          .select(
+            db.raw('COUNT(DISTINCT session_id) as games_played'),
+            db.raw('COALESCE(SUM(score), 0) as total_score'),
+            db.raw('COALESCE(MAX(score), 0) as highest_score')
+          )
+          .first();
+      }
+      
+      return {
+        id: player.id,
+        email: player.email,
+        real_name: player.real_name,
+        nickname: player.nickname,
+        games_played: parseInt(scoreStats.games_played) || 0,
+        highest_score: parseInt(scoreStats.highest_score) || 0,
+        total_score: parseInt(scoreStats.total_score) || 0,
+        all_time_games: parseInt(allTimeStats.games_played) || 0,
+        all_time_highest: parseInt(allTimeStats.highest_score) || 0,
+        all_time_total: parseInt(allTimeStats.total_score) || 0,
+        last_played: player.last_played,
+        marketing_consent: player.marketing_consent,
+        created_at: player.created_at
+      };
+    }));
+    
+    res.json({
+      players: playersWithScores,
+      pagination: {
+        total: parseInt(totalCount.count),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(totalCount.count / limit)
+      },
+      filters: {
+        period: period || null,
+        dateRange: dateRange.startDate ? {
+          start: dateRange.startDate,
+          end: dateRange.endDate
+        } : null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch players',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+
+// Helper function for period date calculations
+const getPeriodDateRange = (periodType) => {
+  const now = new Date();
+  let startDate, endDate;
+  
+  switch(periodType) {
+    case 'weekly':
+      const dayOfWeek = now.getDay();
+      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Monday start
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - diff);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+      break;
+      
+    case 'monthly':
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      break;
+      
+    case 'quarterly':
+      const quarter = Math.floor(now.getMonth() / 3);
+      startDate = new Date(now.getFullYear(), quarter * 3, 1);
+      endDate = new Date(now.getFullYear(), quarter * 3 + 3, 0, 23, 59, 59, 999);
+      break;
+      
+    case 'yearly':
+      startDate = new Date(now.getFullYear(), 0, 1);
+      endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      break;
+  }
+  
+  return { startDate, endDate };
+};
+
+router.get('/players', authMiddleware, async (req, res) => {
+  try {
+    const { period, startDate, endDate, page = 1, limit = 20, search } = req.query;
+    const offset = (page - 1) * limit;
+    
+    // Determine date range
+    let dateRange = {};
+    if (period && ['weekly', 'monthly', 'quarterly', 'yearly'].includes(period)) {
+      dateRange = getPeriodDateRange(period);
+    } else if (startDate && endDate) {
+      dateRange = {
+        startDate: new Date(startDate),
+        endDate: new Date(endDate)
+      };
+    }
+    
+    // Base query for players
+    let playersQuery = db('player_profiles')
+      .whereNotNull('nickname')
+      .orderBy('created_at', 'desc');
+    
+    // Add search if provided
+    if (search) {
+      playersQuery = playersQuery.where(function() {
+        this.where('nickname', 'ilike', `%${search}%`)
+            .orWhere('email', 'ilike', `%${search}%`);
+      });
+    }
+    
+    // Get total count for pagination
+    const totalCount = await playersQuery.clone().count('* as count').first();
+    
+    // Get players with pagination
+    const players = await playersQuery
+      .limit(limit)
+      .offset(offset)
+      .select(
+        'id',
+        'email',
+        'real_name',
+        'nickname',
+        'marketing_consent',
+        'created_at',
+        'last_played'
+      );
+    
+    // For each player, calculate scores based on date range
+    const playersWithScores = await Promise.all(players.map(async (player) => {
+      // Build scores query
+      let scoresQuery = db('scores')
+        .where('player_profile_id', player.id);
+      
+      // Apply date filter if exists
+      if (dateRange.startDate && dateRange.endDate) {
+        scoresQuery = scoresQuery
+          .where('submitted_at', '>=', dateRange.startDate)
+          .where('submitted_at', '<=', dateRange.endDate);
+      }
+      
+      // Get aggregated scores
+      const scoreStats = await scoresQuery
+        .select(
+          db.raw('COUNT(DISTINCT session_id) as games_played'),
+          db.raw('COALESCE(SUM(score), 0) as total_score'),
+          db.raw('COALESCE(MAX(score), 0) as highest_score')
+        )
+        .first();
+      
+      // If no date range, also get all-time stats
+      let allTimeStats = scoreStats;
+      if (dateRange.startDate && dateRange.endDate) {
+        allTimeStats = await db('scores')
+          .where('player_profile_id', player.id)
+          .select(
+            db.raw('COUNT(DISTINCT session_id) as games_played'),
+            db.raw('COALESCE(SUM(score), 0) as total_score'),
+            db.raw('COALESCE(MAX(score), 0) as highest_score')
+          )
+          .first();
+      }
+      
+      return {
+        id: player.id,
+        email: player.email,
+        real_name: player.real_name,
+        nickname: player.nickname,
+        games_played: parseInt(scoreStats.games_played) || 0,
+        highest_score: parseInt(scoreStats.highest_score) || 0,
+        total_score: parseInt(scoreStats.total_score) || 0,
+        all_time_games: parseInt(allTimeStats.games_played) || 0,
+        all_time_highest: parseInt(allTimeStats.highest_score) || 0,
+        all_time_total: parseInt(allTimeStats.total_score) || 0,
+        last_played: player.last_played,
+        marketing_consent: player.marketing_consent,
+        created_at: player.created_at
+      };
+    }));
+    
+    res.json({
+      players: playersWithScores,
+      pagination: {
+        total: parseInt(totalCount.count),
+        page: parseInt(page),
+        limit: parseInt(limit),
+        totalPages: Math.ceil(totalCount.count / limit)
+      },
+      filters: {
+        period: period || null,
+        dateRange: dateRange.startDate ? {
+          start: dateRange.startDate,
+          end: dateRange.endDate
+        } : null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch players',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+module.exports = router;
+
+// Get all sessions with pagination
+router.get('/sessions', async (req, res) => {
+  try {
+    const db = req.app.locals.db;
+    const { page = 1, limit = 50, active } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = db('sessions').select('*');
+    
+    if (active !== undefined) {
+      query = query.where('is_active', active === 'true');
+    }
+
+    const sessions = await query
+      .orderBy('created_at', 'desc')
+      .limit(limit)
+      .offset(offset);
+
+    const [{ total }] = await db('sessions').count('* as total');
+
+    res.json({
+      success: true,
+      sessions,
+      total: parseInt(total),
+      page: parseInt(page),
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    console.error('Sessions error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch sessions' 
+    });
+  }
+});
