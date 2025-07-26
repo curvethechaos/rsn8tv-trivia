@@ -1,0 +1,250 @@
+/* components/common.css - Common styles for components */
+
+/* Spinner */
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Loading States */
+.tab-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--text-secondary);
+}
+
+.tab-error {
+    text-align: center;
+    padding: 60px;
+    color: var(--error);
+}
+
+.initial-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.toast {
+    background: #333;
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 300px;
+    max-width: 500px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transform: translateX(400px);
+    transition: transform 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast-success { background: #2e7d32; }
+.toast-error { background: #d32f2f; }
+.toast-warning { background: #f57c00; }
+.toast-info { background: #1976d2; }
+
+.toast-icon {
+    font-size: 1.2rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toast-message {
+    flex: 1;
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+/* Modal Styles */
+.modal-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-wrapper.show {
+    opacity: 1;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    cursor: pointer;
+}
+
+.modal {
+    position: relative;
+    background: var(--bg-dark);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    max-width: 90%;
+    max-height: 90vh;
+    overflow: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-wrapper.show .modal {
+    transform: scale(1);
+}
+
+/* Sort Info */
+.sort-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: rgba(77, 208, 225, 0.1);
+    border: 1px solid rgba(77, 208, 225, 0.3);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.sort-info-text {
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.sort-priority {
+    font-size: 10px;
+    color: #007bff;
+    font-weight: bold;
+    background: #e7f3ff;
+    padding: 0 4px;
+    border-radius: 3px;
+    margin-right: 3px;
+}
+
+.sort-arrow {
+    font-size: 10px;
+    color: #007bff;
+    margin-left: 3px;
+}
+
+/* Form Controls */
+.form-control {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-primary);
+    padding: 10px 15px;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(77, 208, 225, 0.1);
+}
+
+.form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Ensure dropdowns have dark text */
+select.form-control {
+    color: #333 !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+select.form-control option {
+    color: #333 !important;
+    background-color: #fff !important;
+}
+
+input[type="date"].form-control {
+    color: #333 !important;
+    background-color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Badges */
+.badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.badge-success {
+    background: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+}
+
+.badge-error {
+    background: rgba(244, 67, 54, 0.2);
+    color: #ff5252;
+}
+
+.badge-warning {
+    background: rgba(255, 152, 0, 0.2);
+    color: #ffb74d;
+}
+
+.badge-info {
+    background: rgba(33, 150, 243, 0.2);
+    color: #64b5f6;
+}

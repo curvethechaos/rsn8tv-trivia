@@ -1,0 +1,33 @@
+/* tabs/api/api.css */
+
+.api-tab {
+    padding: 0;
+}
+
+.card-body {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+.api-docs {
+    margin-top: 30px;
+}
+
+.endpoint {
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 15px;
+}
+
+.endpoint h4 {
+    color: #4caf50;
+    margin-bottom: 10px;
+}
+
+.endpoint pre {
+    background: rgba(0,0,0,0.3);
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+}

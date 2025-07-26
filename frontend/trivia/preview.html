@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Theme Preview</title>
+    <link rel="stylesheet" href="player.css">
+    <link rel="stylesheet" href="host.css">
+    <style>
+        body {
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .preview-content {
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        .sample-card {
+            background: var(--surface-color, #16213e);
+            padding: 30px;
+            border-radius: var(--border-radius, 8px);
+            margin-bottom: 20px;
+        }
+        
+        .sample-button {
+            margin: 10px;
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--border-radius, 8px);
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="preview-content" id="preview-content">
+        <!-- Content will be dynamically loaded based on mode -->
+    </div>
+    
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode') || 'player';
+        
+        const content = document.getElementById('preview-content');
+        
+        if (mode === 'player') {
+            content.innerHTML = `
+                <div class="sample-card">
+                    <h1>Player View Preview</h1>
+                    <p>This is how your theme will look in the player interface.</p>
+                    
+                    <div class="question-card" style="margin: 20px 0;">
+                        <h3>Sample Question</h3>
+                        <p>What is the capital of France?</p>
+                        
+                        <div class="answers">
+                            <button class="sample-button btn-primary">Paris</button>
+                            <button class="sample-button btn-secondary">London</button>
+                            <button class="sample-button btn-secondary">Berlin</button>
+                            <button class="sample-button btn-secondary">Madrid</button>
+                        </div>
+                    </div>
+                    
+                    <div class="score-display" style="margin-top: 20px;">
+                        <span style="color: var(--success-color)">Correct! +100 points</span>
+                    </div>
+                </div>
+            `;
+        } else {
+            content.innerHTML = `
+                <div class="sample-card">
+                    <h1>Host View Preview</h1>
+                    <p>This is how your theme will look on the host display.</p>
+                    
+                    <div class="qr-section" style="text-align: center; margin: 20px 0;">
+                        <div style="width: 200px; height: 200px; margin: 0 auto; background: white; display: flex; align-items: center; justify-content: center;">
+                            QR Code
+                        </div>
+                        <h2>Room Code: <span style="color: var(--primary-color)">ABC123</span></h2>
+                    </div>
+                    
+                    <div class="players-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px;">
+                        <div style="background: var(--surface-color); padding: 10px; border-radius: var(--border-radius);">
+                            Player 1
+                        </div>
+                        <div style="background: var(--surface-color); padding: 10px; border-radius: var(--border-radius);">
+                            Player 2
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

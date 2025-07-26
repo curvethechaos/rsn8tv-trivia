@@ -1,0 +1,17 @@
+/* tabs/analytics/analytics.css */
+
+.analytics-tab {
+    padding: 0;
+}
+
+.card-body {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 30px;
+}

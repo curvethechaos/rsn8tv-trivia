@@ -1,3 +1,9 @@
+/* RSN8TV Admin Dashboard - Complete Styles */
+/* Path: /var/www/html/admin/monitoring/dashboard.css */
+
+/* ===================================
+   Base Styles & Variables
+   =================================== */
 * {
     margin: 0;
     padding: 0;
@@ -14,6 +20,7 @@
     --success: #4CAF50;
     --error: #f44336;
     --warning: #ff9800;
+    --info: #2196F3;
 }
 
 body {
@@ -25,7 +32,9 @@ body {
     max-width: 100vw;
 }
 
-/* Header */
+/* ===================================
+   Header
+   =================================== */
 .header {
     background: var(--bg-card);
     padding: 20px;
@@ -38,7 +47,9 @@ body {
     font-size: 2rem;
 }
 
-/* Tab Navigation */
+/* ===================================
+   Tab Navigation
+   =================================== */
 .tab-nav {
     background: rgba(0, 0, 0, 0.2);
     padding: 0 10px;
@@ -94,9 +105,17 @@ body {
     right: 0;
     height: 2px;
     background: var(--primary-color);
+    animation: slideIn 0.3s ease;
 }
 
-/* Tab Content */
+@keyframes slideIn {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+/* ===================================
+   Tab Content & Modular Loading
+   =================================== */
 .tab-content {
     display: none;
     padding: 20px;
@@ -108,11 +127,75 @@ body {
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
 }
 
-/* Cards */
+/* Modular tab loading specific styles */
+#modular-tab-content {
+    width: 100%;
+    min-height: 500px;
+}
+
+.modular-active .tab-content:not(#modular-tab-content) {
+    display: block;
+}
+
+.tab-loading {
+    text-align: center;
+    padding: 60px 20px;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.tab-loading h3 {
+    margin-top: 20px;
+    color: var(--primary-color);
+    font-weight: normal;
+}
+
+.tab-loading .spinner {
+    display: inline-block;
+    width: 50px;
+    height: 50px;
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.tab-error {
+    text-align: center;
+    padding: 60px 20px;
+    min-height: 400px;
+}
+
+.tab-error h3 {
+    color: var(--error);
+    margin-bottom: 10px;
+}
+
+.tab-error p {
+    color: var(--text-secondary);
+    margin: 20px 0;
+}
+
+/* ===================================
+   Cards & Containers
+   =================================== */
 .card {
     background: var(--bg-card);
     border-radius: 10px;
@@ -133,7 +216,9 @@ body {
     font-size: 1.2rem;
 }
 
-/* Grid Layouts */
+/* ===================================
+   Grid Layouts
+   =================================== */
 .grid {
     display: grid;
     gap: 20px;
@@ -152,7 +237,9 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
-/* Forms */
+/* ===================================
+   Forms
+   =================================== */
 .form-group {
     margin-bottom: 20px;
 }
@@ -179,6 +266,8 @@ input[type="email"],
 input[type="number"],
 input[type="date"],
 input[type="file"],
+input[type="password"],
+input[type="url"],
 select,
 textarea {
     width: 100%;
@@ -203,7 +292,14 @@ textarea:focus {
     background: rgba(255, 255, 255, 0.08);
 }
 
-/* Buttons */
+input[type="checkbox"],
+input[type="radio"] {
+    margin-right: 8px;
+}
+
+/* ===================================
+   Buttons
+   =================================== */
 .btn {
     background: var(--primary-color);
     color: var(--bg-dark);
@@ -214,6 +310,8 @@ textarea:focus {
     cursor: pointer;
     transition: all 0.3s ease;
     font-size: 1rem;
+    text-decoration: none;
+    display: inline-block;
 }
 
 .btn:hover {
@@ -253,13 +351,42 @@ textarea:focus {
     color: white;
 }
 
+.btn-success:hover {
+    background: #45a049;
+}
+
+.btn-warning {
+    background: var(--warning);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #e68900;
+}
+
+.btn-info {
+    background: var(--info);
+    color: white;
+}
+
+.btn-info:hover {
+    background: #1976D2;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
 .btn-group {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
 }
 
-/* Tables */
+/* ===================================
+   Tables
+   =================================== */
 .table-container {
     overflow-x: auto;
     background: rgba(0, 0, 0, 0.2);
@@ -284,13 +411,26 @@ th {
     font-weight: 600;
     position: sticky;
     top: 0;
+    z-index: 10;
 }
 
 tr:hover {
     background: rgba(255, 255, 255, 0.05);
 }
 
-/* Status Badges */
+/* Sortable columns */
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.sortable:hover {
+    background: rgba(77, 208, 225, 0.15);
+}
+
+/* ===================================
+   Status Badges
+   =================================== */
 .badge {
     display: inline-block;
     padding: 4px 12px;
@@ -309,7 +449,8 @@ tr:hover {
     color: #ffb74d;
 }
 
-.badge-error {
+.badge-error,
+.badge-danger {
     background: rgba(244, 67, 54, 0.2);
     color: #ff5252;
 }
@@ -319,7 +460,14 @@ tr:hover {
     color: #64b5f6;
 }
 
-/* Search Bar */
+.badge-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+}
+
+/* ===================================
+   Search & Filters
+   =================================== */
 .search-bar {
     display: flex;
     gap: 10px;
@@ -330,12 +478,19 @@ tr:hover {
     flex: 1;
 }
 
-/* Stats Cards */
+/* ===================================
+   Stats Cards
+   =================================== */
 .stat-card {
     background: rgba(255, 255, 255, 0.05);
     padding: 20px;
     border-radius: 10px;
     text-align: center;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
 }
 
 .stat-value {
@@ -348,9 +503,13 @@ tr:hover {
 .stat-label {
     color: var(--text-secondary);
     font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Color Picker */
+/* ===================================
+   Color Picker (Theme Editor)
+   =================================== */
 .color-picker-group {
     display: flex;
     align-items: center;
@@ -383,7 +542,9 @@ input[type="color"] {
     text-align: center;
 }
 
-/* Preview Frame */
+/* ===================================
+   Preview Frame
+   =================================== */
 .preview-frame {
     width: 100%;
     height: 600px;
@@ -392,7 +553,9 @@ input[type="color"] {
     background: white;
 }
 
-/* Upload Area */
+/* ===================================
+   Upload Area
+   =================================== */
 .upload-area {
     border: 2px dashed rgba(255, 255, 255, 0.3);
     border-radius: 10px;
@@ -412,7 +575,9 @@ input[type="color"] {
     background: rgba(255, 184, 77, 0.1);
 }
 
-/* Image Preview */
+/* ===================================
+   Image Preview
+   =================================== */
 .image-preview {
     display: inline-block;
     position: relative;
@@ -441,7 +606,19 @@ input[type="color"] {
     line-height: 1;
 }
 
-/* Loading Spinner */
+/* ===================================
+   Loading States
+   =================================== */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: " Loading...";
+    color: var(--text-secondary);
+}
+
 .spinner {
     display: inline-block;
     width: 20px;
@@ -452,11 +629,9 @@ input[type="color"] {
     animation: spin 1s ease-in-out infinite;
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-/* Alert Messages */
+/* ===================================
+   Alert Messages
+   =================================== */
 .alert {
     padding: 15px 20px;
     border-radius: 8px;
@@ -484,7 +659,53 @@ input[type="color"] {
     color: #64b5f6;
 }
 
-/* Modal */
+.alert-warning {
+    background: rgba(255, 152, 0, 0.2);
+    border: 1px solid #ff9800;
+    color: #ffb74d;
+}
+
+/* ===================================
+   Messages (Toast-like)
+   =================================== */
+.message {
+    padding: 12px 20px;
+    margin: 0 0 20px 0;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: all 0.3s;
+    opacity: 0;
+    transform: translateY(-10px);
+    display: none;
+}
+
+.message.show {
+    display: block;
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.message.success {
+    background: rgba(76, 175, 80, 0.2);
+    color: #81c784;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.message.error {
+    background: rgba(244, 67, 54, 0.2);
+    color: #ff5252;
+    border: 1px solid rgba(244, 67, 54, 0.4);
+}
+
+.message.info {
+    background: rgba(33, 150, 243, 0.2);
+    color: #64b5f6;
+    border: 1px solid rgba(33, 150, 243, 0.4);
+}
+
+/* ===================================
+   Modal
+   =================================== */
 .modal {
     display: none;
     position: fixed;
@@ -498,7 +719,8 @@ input[type="color"] {
     justify-content: center;
 }
 
-.modal.active {
+.modal.active,
+.modal[style*="display: flex"] {
     display: flex;
 }
 
@@ -510,6 +732,18 @@ input[type="color"] {
     width: 90%;
     max-height: 90vh;
     overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .modal-header {
@@ -519,15 +753,48 @@ input[type="color"] {
     margin-bottom: 20px;
 }
 
+.modal-header h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
 .modal-close {
     background: none;
     border: none;
     color: var(--text-secondary);
     font-size: 1.5rem;
     cursor: pointer;
+    transition: color 0.2s;
 }
 
-/* Responsive */
+.modal-close:hover {
+    color: var(--text-primary);
+}
+
+/* ===================================
+   Utility Classes
+   =================================== */
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-muted { color: var(--text-secondary); }
+.text-primary { color: var(--primary-color); }
+.text-success { color: var(--success); }
+.text-danger { color: var(--error); }
+.text-warning { color: var(--warning); }
+
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.mt-3 { margin-top: 1.5rem; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mb-3 { margin-bottom: 1.5rem; }
+
+.hidden { display: none !important; }
+.visible { display: block !important; }
+
+/* ===================================
+   Responsive Design
+   =================================== */
 @media (max-width: 1400px) {
     .tab-button {
         padding: 10px 12px;
@@ -539,7 +806,7 @@ input[type="color"] {
     .tab-nav {
         gap: 3px;
     }
-    
+
     .tab-button {
         padding: 10px 10px;
         font-size: 0.8rem;
@@ -548,7 +815,7 @@ input[type="color"] {
 
 @media (max-width: 768px) {
     .tab-nav {
-        padding: 0 10px;
+        padding: 0 5px;
     }
 
     .tab-button {
@@ -562,5 +829,45 @@ input[type="color"] {
 
     .grid-2, .grid-3, .grid-4 {
         grid-template-columns: 1fr;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+    }
+
+    .modal-content {
+        padding: 20px;
+        width: 95%;
+    }
+
+    .tab-loading {
+        padding: 40px 20px;
+        min-height: 300px;
+    }
+    
+    .tab-loading .spinner {
+        width: 40px;
+        height: 40px;
+        border-width: 3px;
+    }
+}
+
+/* ===================================
+   Print Styles
+   =================================== */
+@media print {
+    body {
+        background: white;
+        color: black;
+    }
+
+    .header, .tab-nav, .btn, .modal {
+        display: none !important;
+    }
+
+    .card {
+        background: white;
+        border: 1px solid #ddd;
+        box-shadow: none;
     }
 }
