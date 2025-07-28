@@ -2,13 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/connection');
 const { authenticateAdmin } = require('../middleware/authMiddleware');
-
-// Temporarily comment out problematic service imports
-// const prizeService = new PrizeService();
-// const questionService = new QuestionService();
-// const themeService = new ThemeService();
-// const brandingService = new BrandingService();
-// const exportService = new ExportService();
+const logger = require('../utils/logger');
 
 // Import services correctly (they're already instantiated)
 const prizeService = require('../services/prizeService');
@@ -16,6 +10,62 @@ const questionService = require('../services/questionService');
 const themeService = require('../services/themeService');
 const brandingService = require('../services/brandingService');
 const exportService = require('../services/exportService');
+
+// Delete player (hard delete with cascade)
+router.delete('/players/:playerId', async (req, res) => {
+    const { playerId } = req.params;
+
+    try {
+        const db = req.app.locals.db;
+
+        // Start transaction for safe deletion
+        await db.transaction(async (trx) => {
+            // First verify player exists
+            const player = await trx('player_profiles')
+                .where('id', playerId)
+                .first();
+
+            if (!player) {
+                throw new Error('Player not found');
+            }
+
+            // Delete in correct order to respect foreign key constraints
+            // 1. Delete scores
+            await trx('scores')
+                .where('player_profile_id', playerId)
+                .delete();
+
+            // 2. Delete leaderboard entries
+            await trx('leaderboards')
+                .where('player_profile_id', playerId)
+                .delete();
+
+            // 3. Delete player instances from sessions
+            await trx('players')
+                .where('player_profile_id', playerId)
+                .delete();
+
+            // 4. Finally delete the player profile
+            await trx('player_profiles')
+                .where('id', playerId)
+                .delete();
+        });
+
+        // Log the deletion
+        logger.info(`Player ${playerId} deleted by admin ${req.user.id}`);
+
+        res.json({
+            success: true,
+            message: 'Player deleted successfully'
+        });
+    } catch (error) {
+        logger.error('Error deleting player:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to delete player'
+        });
+    }
+});
 
 // Stats endpoint
 router.get('/stats', async (req, res) => {
@@ -54,7 +104,7 @@ router.get('/questions', async (req, res) => {
                 .select('*')
                 .orderBy('id', 'desc')
                 .limit(100);
-            
+
             return res.json({
                 success: true,
                 questions,
@@ -63,7 +113,7 @@ router.get('/questions', async (req, res) => {
                 customCount: 0
             });
         }
-        
+
         const result = await questionService.getQuestions(req.query);
         res.json(result);
     } catch (error) {
@@ -80,7 +130,7 @@ router.get('/themes', async (req, res) => {
             const themes = await db('themes').select('*');
             return res.json({ success: true, themes });
         }
-        
+
         const themes = await themeService.getAllThemes();
         res.json({ success: true, themes });
     } catch (error) {
@@ -104,7 +154,7 @@ router.get('/prizes/time-based', async (req, res) => {
                 }
             });
         }
-        
+
         const prizes = await prizeService.getTimeBased();
         res.json({ success: true, prizes });
     } catch (error) {
@@ -126,7 +176,7 @@ router.get('/prizes/threshold', async (req, res) => {
                 }
             });
         }
-        
+
         const threshold = await prizeService.getThreshold();
         res.json({ success: true, threshold });
     } catch (error) {
@@ -152,7 +202,7 @@ router.get('/branding', async (req, res) => {
                 }
             });
         }
-        
+
         const branding = await brandingService.getCurrentBranding();
         res.json({ success: true, branding });
     } catch (error) {
@@ -168,7 +218,7 @@ router.get('/exports', async (req, res) => {
             // Fallback
             return res.json({ success: true, exports: [] });
         }
-        
+
         const exports = await exportService.listExports(req.user.id);
         res.json({ success: true, exports });
     } catch (error) {
@@ -176,8 +226,6 @@ router.get('/exports', async (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to fetch exports' });
     }
 });
-
-module.exports = router;
 
 // Get all sessions with pagination
 router.get('/sessions', async (req, res) => {
@@ -187,7 +235,7 @@ router.get('/sessions', async (req, res) => {
     const offset = (page - 1) * limit;
 
     let query = db('sessions').select('*');
-    
+
     if (active !== undefined) {
       query = query.where('is_active', active === 'true');
     }
@@ -208,9 +256,387 @@ router.get('/sessions', async (req, res) => {
     });
   } catch (error) {
     console.error('Sessions error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch sessions' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch sessions'
     });
   }
 });
+
+// Get all players with complete stats
+router.get('/players', async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      search, 
+      hasEmail,
+      marketingConsent,
+      minScore,
+      minTotal,
+      period,
+      regFrom,
+      regTo,
+      playedFrom,
+      playedTo,
+      prizeEligible,
+      sortBy = 'created_at', 
+      sortOrder = 'desc' 
+    } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = db('player_profiles as pp')
+      .leftJoin(
+        db('scores')
+          .select('player_profile_id',
+            db.raw('COUNT(*) as games_played'),
+            db.raw('MAX(score) as highest_score'),
+            db.raw('SUM(score) as total_score'),
+            db.raw('MAX(submitted_at) as last_played')
+          )
+          .groupBy('player_profile_id')
+          .as('s'),
+        'pp.id', 's.player_profile_id'
+      )
+      // Join with current period leaderboards
+      .leftJoin(
+        db('leaderboards')
+          .select('player_profile_id', 'total_score as weekly_score', 'rank_position as weekly_rank')
+          .where('period_type', 'weekly')
+          .whereRaw('period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE')
+          .as('lw'),
+        'pp.id', 'lw.player_profile_id'
+      )
+      .leftJoin(
+        db('leaderboards')
+          .select('player_profile_id', 'total_score as monthly_score', 'rank_position as monthly_rank')
+          .where('period_type', 'monthly')
+          .whereRaw('period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE')
+          .as('lm'),
+        'pp.id', 'lm.player_profile_id'
+      )
+      .leftJoin(
+        db('leaderboards')
+          .select('player_profile_id', 'total_score as quarterly_score', 'rank_position as quarterly_rank')
+          .where('period_type', 'quarterly')
+          .whereRaw('period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE')
+          .as('lq'),
+        'pp.id', 'lq.player_profile_id'
+      )
+      .leftJoin(
+        db('leaderboards')
+          .select('player_profile_id', 'total_score as yearly_score', 'rank_position as yearly_rank')
+          .where('period_type', 'yearly')
+          .whereRaw('period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE')
+          .as('ly'),
+        'pp.id', 'ly.player_profile_id'
+      )
+      .select(
+        'pp.id',
+        'pp.nickname',
+        'pp.email',
+        'pp.real_name',
+        'pp.marketing_consent',
+        'pp.created_at',
+        db.raw('COALESCE(s.games_played, 0) as games_played'),
+        db.raw('COALESCE(s.highest_score, 0) as highest_score'),
+        db.raw('COALESCE(s.total_score, 0) as total_score'),
+        db.raw('COALESCE(lw.weekly_score, 0) as weekly_score'),
+        db.raw('COALESCE(lm.monthly_score, 0) as monthly_score'),
+        db.raw('COALESCE(lq.quarterly_score, 0) as quarterly_score'),
+        db.raw('COALESCE(ly.yearly_score, 0) as yearly_score'),
+        db.raw('COALESCE(lw.weekly_rank, null) as weekly_rank'),
+        db.raw('COALESCE(lm.monthly_rank, null) as monthly_rank'),
+        db.raw('COALESCE(lq.quarterly_rank, null) as quarterly_rank'),
+        db.raw('COALESCE(ly.yearly_rank, null) as yearly_rank'),
+        's.last_played',
+        // Current winner status
+        db.raw(`
+          CASE
+            WHEN lw.weekly_rank = 1 THEN 'W'
+            WHEN lm.monthly_rank = 1 THEN 'M'
+            WHEN lq.quarterly_rank = 1 THEN 'Q'
+            WHEN ly.yearly_rank = 1 THEN 'Y'
+            WHEN lw.weekly_score >= 8500 THEN 'T'
+            ELSE NULL
+          END as current_winner_status
+        `)
+      );
+
+    if (search) {
+      query = query.where(function() {
+        this.where('pp.nickname', 'ilike', `%${search}%`)
+          .orWhere('pp.email', 'ilike', `%${search}%`)
+          .orWhere('pp.real_name', 'ilike', `%${search}%`);
+      });
+    }
+
+    if (hasEmail !== undefined) {
+      if (hasEmail === 'true') {
+        query = query.whereNotNull('pp.email');
+      } else {
+        query = query.whereNull('pp.email');
+      }
+    }
+
+    // Marketing consent filter
+    if (marketingConsent !== undefined && marketingConsent !== '') {
+      query = query.where('pp.marketing_consent', marketingConsent === 'true');
+    }
+
+    // Minimum highest score filter
+    if (minScore) {
+      query = query.whereRaw('COALESCE(s.highest_score, 0) >= ?', [parseInt(minScore)]);
+    }
+
+    // Minimum total score filter
+    if (minTotal) {
+      query = query.whereRaw('COALESCE(s.total_score, 0) >= ?', [parseInt(minTotal)]);
+    }
+
+    // Registration date filters
+    if (regFrom) {
+      query = query.where('pp.created_at', '>=', regFrom);
+    }
+    if (regTo) {
+      query = query.where('pp.created_at', '<=', regTo + ' 23:59:59');
+    }
+
+    // Last played date filters
+    if (playedFrom) {
+      query = query.whereRaw('s.last_played >= ?', [playedFrom]);
+    }
+    if (playedTo) {
+      query = query.whereRaw('s.last_played <= ?', [playedTo + ' 23:59:59']);
+    }
+
+    // Period filter - only show players with scores in specific period
+    if (period) {
+      switch (period) {
+        case 'weekly':
+          query = query.whereRaw('COALESCE(lw.weekly_score, 0) > 0');
+          break;
+        case 'monthly':
+          query = query.whereRaw('COALESCE(lm.monthly_score, 0) > 0');
+          break;
+        case 'quarterly':
+          query = query.whereRaw('COALESCE(lq.quarterly_score, 0) > 0');
+          break;
+        case 'yearly':
+          query = query.whereRaw('COALESCE(ly.yearly_score, 0) > 0');
+          break;
+      }
+    }
+
+    // Prize eligibility filter
+    if (prizeEligible) {
+      switch (prizeEligible) {
+        case 'current':
+          // Currently winning any period or threshold
+          query = query.where(function() {
+            this.where('lw.weekly_rank', 1)
+              .orWhere('lm.monthly_rank', 1)
+              .orWhere('lq.quarterly_rank', 1)
+              .orWhere('ly.yearly_rank', 1)
+              .orWhere('lw.weekly_score', '>=', 8500);
+          });
+          break;
+        case 'past':
+          // Has won before but not currently winning
+          // This requires a subquery to check historical wins
+          query = query.whereExists(function() {
+            this.select(db.raw(1))
+              .from('leaderboards')
+              .whereRaw('leaderboards.player_profile_id = pp.id')
+              .where(function() {
+                this.where('rank_position', 1)
+                  .orWhere(function() {
+                    this.where('total_score', '>=', 8500)
+                      .where('period_type', 'weekly');
+                  });
+              });
+          })
+          .whereNotExists(function() {
+            this.select(db.raw(1))
+              .from('leaderboards')
+              .whereRaw('leaderboards.player_profile_id = pp.id')
+              .whereRaw('period_start <= CURRENT_DATE AND period_end >= CURRENT_DATE')
+              .where(function() {
+                this.where('rank_position', 1)
+                  .orWhere(function() {
+                    this.where('total_score', '>=', 8500)
+                      .where('period_type', 'weekly');
+                  });
+              });
+          });
+          break;
+        case 'threshold':
+          // Weekly score >= 8500
+          query = query.where('lw.weekly_score', '>=', 8500);
+          break;
+        case 'never':
+          // Never won any prize
+          query = query.whereNotExists(function() {
+            this.select(db.raw(1))
+              .from('leaderboards')
+              .whereRaw('leaderboards.player_profile_id = pp.id')
+              .where(function() {
+                this.where('rank_position', 1)
+                  .orWhere(function() {
+                    this.where('total_score', '>=', 8500)
+                      .where('period_type', 'weekly');
+                  });
+              });
+          });
+          break;
+      }
+    }
+
+    // Map frontend column names to database column names
+    const sortMapping = {
+      'nickname': 'pp.nickname',
+      'real_name': 'pp.real_name', 
+      'email': 'pp.email',
+      'games_played': db.raw('COALESCE(s.games_played, 0)'),
+      'highest_score': db.raw('COALESCE(s.highest_score, 0)'),
+      'total_score': db.raw('COALESCE(s.total_score, 0)'),
+      'weekly_score': db.raw('COALESCE(lw.weekly_score, 0)'),
+      'monthly_score': db.raw('COALESCE(lm.monthly_score, 0)'),
+      'quarterly_score': db.raw('COALESCE(lq.quarterly_score, 0)'),
+      'yearly_score': db.raw('COALESCE(ly.yearly_score, 0)'),
+      'created_at': 'pp.created_at',
+      'last_played': 's.last_played',
+      'marketing_consent': 'pp.marketing_consent',
+      'has_won_prize': 'has_won_prize',
+      'current_winner_status': 'current_winner_status'
+    };
+
+    const sortColumn = sortMapping[sortBy] || 'pp.created_at';
+
+    const players = await query
+      .orderBy(sortColumn, sortOrder)
+      .limit(limit)
+      .offset(offset);
+
+    // Get total count
+    const totalCount = await db('player_profiles')
+      .where(search ? function() {
+        this.where('nickname', 'ilike', `%${search}%`)
+          .orWhere('email', 'ilike', `%${search}%`)
+          .orWhere('real_name', 'ilike', `%${search}%`);
+      } : {})
+      .count('id as count');
+
+    // Check for past winners
+    const playerIds = players.map(p => p.id);
+    const pastWinners = playerIds.length > 0 ? await db('leaderboards')
+      .whereIn('player_profile_id', playerIds)
+      .where(function() {
+        this.where('rank_position', 1)
+          .orWhere(function() {
+            this.where('total_score', '>=', 8500)
+              .where('period_type', 'weekly');
+          });
+      })
+      .select('player_profile_id')
+      .distinct() : [];
+
+    const pastWinnerIds = new Set(pastWinners.map(w => w.player_profile_id));
+
+    // Add past winner status
+    const playersWithWinnerStatus = players.map(player => ({
+      ...player,
+      has_won_prize: pastWinnerIds.has(player.id)
+    }));
+
+    // Get stats for header
+    const stats = await db('player_profiles as pp')
+      .select(
+        db.raw('COUNT(DISTINCT pp.id) as total'),
+        db.raw('COUNT(DISTINCT CASE WHEN DATE(pp.created_at) = CURRENT_DATE THEN pp.id END) as registeredToday'),
+        db.raw('COUNT(DISTINCT CASE WHEN pp.email IS NOT NULL AND pp.email != \'\' THEN pp.id END) as withEmail'),
+        db.raw('COUNT(DISTINCT CASE WHEN pp.marketing_consent = true THEN pp.id END) as marketingConsent')
+      )
+      .first();
+
+    res.json({
+      success: true,
+      players: playersWithWinnerStatus,
+      stats: {
+        total: parseInt(stats.total) || 0,
+        registeredToday: parseInt(stats.registeredToday) || 0,
+        withEmail: parseInt(stats.withEmail) || 0,
+        marketingConsent: parseInt(stats.marketingConsent) || 0
+      },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: parseInt(totalCount[0].count),
+        pages: Math.ceil(totalCount[0].count / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching players:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch players'
+    });
+  }
+});
+
+// Get player details for modal
+router.get('/players/:playerId', async (req, res) => {
+  try {
+    const { playerId } = req.params;
+
+    const player = await db('player_profiles')
+      .where('id', playerId)
+      .first();
+
+    if (!player) {
+      return res.status(404).json({
+        success: false,
+        error: 'Player not found'
+      });
+    }
+
+    // Get stats
+    const stats = await db('scores')
+      .where('player_profile_id', playerId)
+      .select(
+        db.raw('COUNT(DISTINCT session_id) as games_played'),
+        db.raw('COALESCE(SUM(score), 0) as total_score'),
+        db.raw('COALESCE(AVG(score), 0) as average_score'),
+        db.raw('COALESCE(MAX(score), 0) as highest_score')
+      )
+      .first();
+
+    const lastGame = await db('scores')
+      .where('player_profile_id', playerId)
+      .orderBy('submitted_at', 'desc')
+      .select('submitted_at')
+      .first();
+
+    res.json({
+      success: true,
+      profile: {
+        ...player,
+        games_played: parseInt(stats.games_played) || 0,
+        total_score: parseInt(stats.total_score) || 0,
+        average_score: parseFloat(stats.average_score) || 0,
+        highest_score: parseInt(stats.highest_score) || 0,
+        last_played: lastGame?.submitted_at || null
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching player details:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch player details'
+    });
+  }
+});
+
+module.exports = router;
