@@ -1,143 +1,406 @@
-/* Questions Tab Styles */
-.question-stats {
+/* Questions Tab Styles - Aligned with Players Tab Design System */
+.questions-container {
+    padding: 20px;
+}
+
+/* Header Section with Actions */
+.questions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.questions-header h2 {
+    margin: 0;
+    color: #fff;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.header-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Stats Grid - Matching Players Tab */
+.stats-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
     margin-bottom: 30px;
 }
 
-.stat-box {
-    background: rgba(255,255,255,0.05);
+.stat-card {
+    background: #2a2d3e;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 10px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-card h3 {
+    color: #8b92a5;
+    font-size: 14px;
+    margin: 0 0 10px 0;
+    font-weight: normal;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-card .stat-value {
+    color: #00d4ff;
+    font-size: 36px;
+    font-weight: bold;
+    line-height: 1;
+}
+
+/* Filters Section - Matching Players Tab */
+.filters-section {
+    background: #2a2d3e;
+    padding: 25px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.filters-section h3 {
+    margin: 0 0 20px 0;
+    color: #fff;
+    font-size: 18px;
+}
+
+.filters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.filter-group label {
+    color: #8b92a5;
+    font-size: 13px;
+    margin-bottom: 6px;
+    font-weight: 500;
+}
+
+.filter-group input,
+.filter-group select {
+    padding: 10px 12px;
+    background: #1a1d2e;
+    border: 1px solid #3a3d4e;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+    outline: none;
+    border-color: #00d4ff;
+}
+
+.filter-group input::placeholder {
+    color: #666;
+}
+
+/* Fix select dropdown text visibility */
+.filter-select,
+select {
+    color: #fff !important;
+    background-color: #1a1d2e !important;
+}
+
+.filter-select option,
+select option {
+    color: #333 !important;
+    background-color: #fff !important;
+    padding: 5px;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+/* Table Styles - Matching Players Tab */
+.table-wrapper {
+    background: #2a2d3e;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.questions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.questions-table thead {
+    background: #1a1d2e;
+}
+
+.questions-table th {
+    padding: 15px;
+    text-align: left;
+    color: #8b92a5;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.questions-table th.numeric {
     text-align: center;
 }
 
-.stat-box h4 {
-    color: #999;
-    font-size: 0.9em;
-    margin-bottom: 10px;
+.questions-table td {
+    padding: 12px 15px;
+    border-top: 1px solid #3a3d4e;
+    font-size: 14px;
+    color: #fff;
 }
 
-.stat-box p {
-    font-size: 2em;
-    font-weight: bold;
-    color: #4dd0e1;
+.questions-table td.numeric {
+    text-align: center;
+}
+
+.questions-table tbody tr {
+    transition: background-color 0.2s;
+}
+
+.questions-table tbody tr:hover {
+    background: #333647;
 }
 
 .question-text {
-    max-width: 400px;
+    max-width: 300px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.difficulty-badge {
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 0.8em;
-    text-transform: uppercase;
+/* Question-Specific Badges */
+.difficulty-easy {
+    color: #00ff88;
+    font-weight: 500;
 }
 
-.difficulty-badge.easy {
-    background: #4caf50;
-    color: white;
+.difficulty-medium {
+    color: #ffb84d;
+    font-weight: 500;
 }
 
-.difficulty-badge.medium {
-    background: #ff9800;
-    color: white;
+.difficulty-hard {
+    color: #ff4444;
+    font-weight: 500;
 }
 
-.difficulty-badge.hard {
-    background: #f44336;
-    color: white;
-}
-
-.quality-score {
-    font-weight: bold;
-}
-
-.quality-score.high {
-    color: #4caf50;
-}
-
-.quality-score.low {
-    color: #f44336;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 5px;
-}
-
-.action-buttons .btn {
+/* Badge Styles - Matching Players Tab */
+.badge {
+    display: inline-block;
     padding: 4px 8px;
-    font-size: 0.9em;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
 }
 
-tr.flagged {
-    background: rgba(244, 67, 54, 0.1);
+.badge-success {
+    background: #00ff8833;
+    color: #00ff88;
 }
 
-tr.custom {
-    background: rgba(33, 150, 243, 0.1);
+.badge-danger {
+    background: #ff444433;
+    color: #ff4444;
 }
 
-/* Import Modal Styles */
-.import-instructions {
-    background: rgba(255,255,255,0.05);
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 20px;
+.badge-info {
+    background: #00d4ff33;
+    color: #00d4ff;
 }
 
-.import-instructions ul {
-    margin: 10px 0 0 20px;
+/* Action Buttons in Table */
+.actions {
+    white-space: nowrap;
 }
 
-.file-upload-area {
-    text-align: center;
-    padding: 20px;
-    border: 2px dashed rgba(255,255,255,0.3);
-    border-radius: 8px;
-    margin-bottom: 20px;
+.actions button {
+    margin-right: 5px;
 }
 
-#file-name {
-    display: block;
-    margin-top: 10px;
-    color: #999;
+/* Buttons - Matching Players Tab */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
 }
 
-#import-preview {
-    background: rgba(255,255,255,0.05);
-    padding: 15px;
-    border-radius: 8px;
-    max-height: 200px;
-    overflow-y: auto;
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background: #00d4ff;
+    color: #000;
+}
+
+.btn-primary:hover {
+    background: #00b8e6;
+    box-shadow: 0 2px 8px rgba(0, 212, 255, 0.3);
+}
+
+.btn-secondary {
+    background: #4a4d5e;
+    color: #fff;
+}
+
+.btn-secondary:hover {
+    background: #5a5d6e;
+}
+
+.btn-warning {
+    background: #ffb84d;
+    color: #000;
+}
+
+.btn-warning:hover {
+    background: #ff9f1a;
+}
+
+.btn-success {
+    background: #00ff88;
+    color: #000;
+}
+
+.btn-success:hover {
+    background: #00cc6a;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* Modal Styles - Matching Players Tab */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: #2a2d3e;
+    padding: 0;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    background: #1a1d2e;
+    padding: 20px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #3a3d4e;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #00d4ff;
+    font-size: 20px;
+    font-weight: 500;
+}
+
+.close {
+    background: none;
+    border: none;
+    color: #8b92a5;
+    font-size: 28px;
+    font-weight: normal;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s;
+}
+
+.close:hover {
+    color: #fff;
 }
 
 /* Form Styles */
+form {
+    padding: 30px;
+}
+
 .form-group {
     margin-bottom: 20px;
 }
 
 .form-group label {
     display: block;
-    margin-bottom: 5px;
-    color: #4dd0e1;
+    margin-bottom: 8px;
+    color: #8b92a5;
+    font-size: 13px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .form-group input,
-.form-group select,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
     width: 100%;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-radius: 4px;
-    color: white;
+    padding: 10px 12px;
+    background: #1a1d2e;
+    border: 1px solid #3a3d4e;
+    border-radius: 5px;
+    color: #fff;
+    font-size: 14px;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #00d4ff;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 80px;
 }
 
 .form-row {
@@ -146,9 +409,165 @@ tr.custom {
     gap: 20px;
 }
 
-.form-hint {
-    display: block;
-    margin-top: 5px;
-    color: #999;
-    font-size: 0.9em;
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid #3a3d4e;
+}
+
+/* Import Modal Specific */
+.import-instructions {
+    background: #1a1d2e;
+    padding: 20px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.import-instructions p {
+    margin: 0 0 10px 0;
+    color: #8b92a5;
+}
+
+.import-instructions ul {
+    margin: 10px 0;
+    padding-left: 30px;
+    color: #fff;
+}
+
+.import-instructions li {
+    margin-bottom: 5px;
+}
+
+/* Pagination - Matching Players Tab */
+.pagination-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    background: #2a2d3e;
+    border-radius: 10px;
+}
+
+.pagination-info {
+    color: #8b92a5;
+    font-size: 14px;
+}
+
+.pagination-controls {
+    display: flex;
+    gap: 5px;
+}
+
+.pagination-controls button {
+    min-width: 35px;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    color: #8b92a5;
+    padding: 60px 20px;
+    font-size: 14px;
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading-cell {
+    text-align: center;
+    padding: 40px;
+    color: #8b92a5;
+}
+
+/* Message/Alert Styles - Matching Players Tab */
+.message {
+    padding: 12px 20px;
+    margin: 0 0 20px 0;
+    border-radius: 5px;
+    font-size: 14px;
+    transition: all 0.3s;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.message.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.message.success {
+    background: #00ff8833;
+    color: #00ff88;
+    border: 1px solid #00ff8844;
+}
+
+.message.error {
+    background: #ff444433;
+    color: #ff6666;
+    border: 1px solid #ff444444;
+}
+
+.message.info {
+    background: #00d4ff33;
+    color: #00d4ff;
+    border: 1px solid #00d4ff44;
+}
+
+/* Responsive Design - Matching Players Tab */
+@media (max-width: 1200px) {
+    .filter-controls {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .table-container {
+        overflow-x: auto;
+    }
+    
+    table {
+        min-width: 800px;
+    }
+    
+    .pagination {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .header-controls {
+        padding: 15px;
+    }
+    
+    .filter-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-input {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons button {
+        width: 100%;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
 }

@@ -2,7 +2,7 @@
 <div class="players-container">
     <h2>Player Management</h2>
 
-    <!-- Stats Grid -->
+    <!-- Stats Grid - Only 2 boxes as requested -->
     <div class="stats-grid">
         <div class="stat-card">
             <h3>Total Players</h3>
@@ -10,15 +10,7 @@
         </div>
         <div class="stat-card">
             <h3>Registered Today</h3>
-            <div class="stat-value" id="registeredToday">0</div>
-        </div>
-        <div class="stat-card">
-            <h3>With Email</h3>
-            <div class="stat-value" id="withEmail">0</div>
-        </div>
-        <div class="stat-card">
-            <h3>Marketing Consent</h3>
-            <div class="stat-value" id="marketingConsent">0</div>
+            <div class="stat-value" id="registeredTodayCount">0</div>
         </div>
     </div>
 
@@ -55,11 +47,11 @@
                 <input type="number" id="minTotalScoreFilter" placeholder="0" min="0">
             </div>
             <div class="filter-group">
-                <label>Registration Date From</label>
+                <label>Registration From</label>
                 <input type="date" id="dateFrom">
             </div>
             <div class="filter-group">
-                <label>Registration Date To</label>
+                <label>Registration To</label>
                 <input type="date" id="dateTo">
             </div>
             <div class="filter-group">
@@ -95,7 +87,7 @@
         </div>
     </div>
 
-    <!-- Players Table -->
+    <!-- Players Table with exact column order requested -->
     <div class="table-wrapper">
         <table class="players-table">
             <thead>
@@ -103,37 +95,25 @@
                     <th class="checkbox-column">
                         <input type="checkbox" id="selectAllCheckbox" onchange="PlayersTab.toggleSelectAll()">
                     </th>
-                    <th class="sortable" data-sort="nickname" onclick="PlayersTab.sortBy('nickname')">
-                        Nickname
-                    </th>
-                    <th class="sortable" data-sort="real_name" onclick="PlayersTab.sortBy('real_name')">
-                        Real Name
-                    </th>
-                    <th class="sortable" data-sort="email" onclick="PlayersTab.sortBy('email')">
-                        Email
-                    </th>
-                    <th class="sortable numeric" data-sort="games_played" onclick="PlayersTab.sortBy('games_played')">
-                        Games
-                    </th>
-                    <th class="sortable numeric" data-sort="highest_score" onclick="PlayersTab.sortBy('highest_score')">
-                        High Score
-                    </th>
-                    <th class="sortable numeric" data-sort="total_score" onclick="PlayersTab.sortBy('total_score')">
-                        Total Score
-                    </th>
-                    <th class="sortable" data-sort="created_at" onclick="PlayersTab.sortBy('created_at')">
-                        Registered
-                    </th>
-                    <th class="sortable" data-sort="last_played" onclick="PlayersTab.sortBy('last_played')">
-                        Last Played
-                    </th>
-                    <th>Marketing</th>
+                    <th class="sortable" data-sort="nickname" onclick="PlayersTab.sortBy('nickname')">Player</th>
+                    <th class="sortable" data-sort="email" onclick="PlayersTab.sortBy('email')">Email</th>
+                    <th class="sortable numeric" data-sort="games_played" onclick="PlayersTab.sortBy('games_played')">Games</th>
+                    <th class="sortable numeric" data-sort="highest_score" onclick="PlayersTab.sortBy('highest_score')">High Score</th>
+                    <th class="sortable numeric" data-sort="total_score" onclick="PlayersTab.sortBy('total_score')">Total Score</th>
+                    <th class="numeric">Weekly</th>
+                    <th class="numeric">Monthly</th>
+                    <th class="numeric">Quarterly</th>
+                    <th class="numeric">Yearly</th>
+                    <th class="sortable" data-sort="created_at" onclick="PlayersTab.sortBy('created_at')">Registered</th>
+                    <th class="sortable" data-sort="last_played" onclick="PlayersTab.sortBy('last_played')">Last Played</th>
+                    <th>Current 🏆</th>
+                    <th>Past 🏆</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="playersTableBody">
                 <tr>
-                    <td colspan="11" class="loading-cell">Loading players...</td>
+                    <td colspan="15" class="loading-cell">Loading players...</td>
                 </tr>
             </tbody>
         </table>

@@ -1,132 +1,165 @@
-<div id="questions-tab" class="tab-content">
-    <div class="card">
-        <div class="card-header">
-            <h2>Question Management</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Questions Management</title>
+</head>
+<body>
+    <div class="questions-container">
+        <!-- Header with action buttons -->
+        <div class="questions-header">
+            <h2>Questions Management</h2>
             <div class="header-actions">
-                <button class="btn btn-primary" onclick="showAddQuestionModal()">
-                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                    </svg>
-                    Add Question
-                </button>
-                <button class="btn btn-secondary" onclick="showImportModal()">Import CSV</button>
-                <button class="btn btn-secondary" onclick="exportQuestions()">Export CSV</button>
-                <button class="btn btn-secondary" onclick="downloadTemplate()">Download Template</button>
+                <button onclick="window.showAddQuestionModal()" class="btn btn-primary">Add Question</button>
+                <button onclick="window.importQuestions()" class="btn btn-secondary">Import CSV</button>
+                <button onclick="window.exportQuestions()" class="btn btn-secondary">Export CSV</button>
             </div>
         </div>
-        
-        <div class="card-body">
-            <!-- Statistics -->
-            <div class="question-stats">
-                <div class="stat-box">
-                    <h4>Total Questions</h4>
-                    <p id="total-questions">0</p>
+
+        <!-- Stats Cards - Above filters -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Questions</h3>
+                <div class="stat-value" id="totalQuestions">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Questions</h3>
+                <div class="stat-value" id="activeQuestions">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Flagged Questions</h3>
+                <div class="stat-value" id="flaggedQuestions">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Custom Questions</h3>
+                <div class="stat-value" id="customQuestions">0</div>
+            </div>
+        </div>
+
+        <!-- Filters Section -->
+        <div class="filters-section">
+            <h3>Filters</h3>
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label for="searchInput">Search</label>
+                    <input type="text" id="searchInput" placeholder="Search questions..." onkeypress="if(event.key==='Enter') window.loadQuestions()">
                 </div>
-                <div class="stat-box">
-                    <h4>Flagged Questions</h4>
-                    <p id="flagged-questions">0</p>
+                
+                <div class="filter-group">
+                    <label for="categoryFilter">Category</label>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="">All Categories</option>
+                    </select>
                 </div>
-                <div class="stat-box">
-                    <h4>Custom Questions</h4>
-                    <p id="custom-questions">0</p>
+                
+                <div class="filter-group">
+                    <label for="difficultyFilter">Difficulty</label>
+                    <select id="difficultyFilter" class="filter-select">
+                        <option value="">All Difficulties</option>
+                        <option value="easy">Easy</option>
+                        <option value="medium">Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
                 </div>
-                <div class="stat-box">
-                    <h4>Categories</h4>
-                    <p id="total-categories">0</p>
+                
+                <div class="filter-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="flagged">Flagged</option>
+                        <option value="custom">Custom</option>
+                    </select>
                 </div>
             </div>
-            
-            <!-- Filters -->
-            <div class="filters-section">
-                <input type="text" id="question-search" placeholder="Search questions..." class="search-input" onkeyup="debounceSearch()">
-                <select id="category-filter" class="filter-select" onchange="loadQuestions()">
-                    <option value="">All Categories</option>
-                </select>
-                <select id="difficulty-filter" class="filter-select" onchange="loadQuestions()">
-                    <option value="">All Difficulties</option>
-                    <option value="easy">Easy</option>
-                    <option value="medium">Medium</option>
-                    <option value="hard">Hard</option>
-                </select>
-                <select id="status-filter" class="filter-select" onchange="loadQuestions()">
-                    <option value="">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="flagged">Flagged</option>
-                    <option value="custom">Custom</option>
-                </select>
+            <div class="filter-actions">
+                <button onclick="window.clearFilters()" class="btn btn-secondary">Clear</button>
+                <button onclick="window.loadQuestions()" class="btn btn-primary">Search</button>
             </div>
-            
-            <!-- Questions Table -->
-            <div class="table-container">
-                <table class="data-table" id="questions-table">
-                    <thead>
-                        <tr>
-                            <th width="5%">ID</th>
-                            <th width="35%">Question</th>
-                            <th width="15%">Category</th>
-                            <th width="10%">Difficulty</th>
-                            <th width="10%">Times Used</th>
-                            <th width="10%">Quality Score</th>
-                            <th width="15%">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="questions-tbody">
-                        <tr>
-                            <td colspan="7" class="text-center">Loading questions...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrapper">
+            <table class="questions-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Question</th>
+                        <th>Answer</th>
+                        <th>Category</th>
+                        <th>Difficulty</th>
+                        <th>Usage</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="questionsTableBody">
+                    <tr>
+                        <td colspan="8" class="loading-cell">Loading questions...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-wrapper">
+            <div class="pagination-info">
+                <span id="paginationInfo">Showing 0 of 0 questions</span>
             </div>
-            
-            <!-- Pagination -->
-            <div class="pagination">
-                <button class="btn btn-sm" onclick="changePage(-1)" id="prev-page">Previous</button>
-                <span id="page-info">Page 1 of 1</span>
-                <button class="btn btn-sm" onclick="changePage(1)" id="next-page">Next</button>
+            <div class="pagination-controls" id="paginationControls">
+                <!-- Pagination buttons will be inserted here -->
             </div>
         </div>
     </div>
-    
+
     <!-- Add/Edit Question Modal -->
-    <div id="question-modal" class="modal" style="display: none;">
+    <div id="addQuestionModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="modal-title">Add Question</h2>
-                <button class="close-btn" onclick="closeQuestionModal()">&times;</button>
+                <h3 id="modalTitle">Add New Question</h3>
+                <button class="modal-close" onclick="window.closeModal('addQuestionModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="question-form">
-                    <div class="form-group">
-                        <label>Question Text *</label>
-                        <textarea id="question-text" rows="3" required></textarea>
-                        <small class="form-hint">Keep it concise (8-15 words optimal)</small>
-                    </div>
+                <form id="questionForm" onsubmit="window.saveQuestion(event)">
+                    <input type="hidden" id="questionId" value="">
                     
+                    <div class="form-group">
+                        <label for="questionText">Question Text *</label>
+                        <textarea id="questionText" name="question_text" rows="3" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="correctAnswer">Correct Answer *</label>
+                        <input type="text" id="correctAnswer" name="correct_answer" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incorrectAnswer1">Incorrect Answer 1 *</label>
+                        <input type="text" id="incorrectAnswer1" name="incorrect_answer_1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incorrectAnswer2">Incorrect Answer 2 *</label>
+                        <input type="text" id="incorrectAnswer2" name="incorrect_answer_2" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="incorrectAnswer3">Incorrect Answer 3 *</label>
+                        <input type="text" id="incorrectAnswer3" name="incorrect_answer_3" required>
+                    </div>
+
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Category *</label>
-                            <select id="question-category" required>
+                            <label for="category">Category *</label>
+                            <select id="category" name="category" required>
                                 <option value="">Select Category</option>
-                                <option value="General Knowledge">General Knowledge</option>
-                                <option value="Entertainment: Film">Entertainment: Film</option>
-                                <option value="Entertainment: Music">Entertainment: Music</option>
-                                <option value="Entertainment: Television">Entertainment: Television</option>
-                                <option value="Entertainment: Video Games">Entertainment: Video Games</option>
-                                <option value="Science & Nature">Science & Nature</option>
-                                <option value="Sports">Sports</option>
-                                <option value="Geography">Geography</option>
-                                <option value="History">History</option>
-                                <option value="Politics">Politics</option>
-                                <option value="Art">Art</option>
-                                <option value="Animals">Animals</option>
-                                <option value="custom">Custom Category</option>
                             </select>
-                            <input type="text" id="custom-category" placeholder="Enter custom category" style="display:none; margin-top:10px;">
                         </div>
-                        
+
                         <div class="form-group">
-                            <label>Difficulty *</label>
-                            <select id="question-difficulty" required>
+                            <label for="difficulty">Difficulty *</label>
+                            <select id="difficulty" name="difficulty" required>
                                 <option value="">Select Difficulty</option>
                                 <option value="easy">Easy</option>
                                 <option value="medium">Medium</option>
@@ -134,59 +167,95 @@
                             </select>
                         </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Correct Answer *</label>
-                        <input type="text" id="correct-answer" required>
+
+                    <div class="form-actions">
+                        <button type="button" onclick="window.closeModal('addQuestionModal')" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Question</button>
                     </div>
-                    
-                    <div class="form-group">
-                        <label>Incorrect Answers * (one per line)</label>
-                        <textarea id="incorrect-answers" rows="3" required placeholder="Enter 3 incorrect answers, one per line"></textarea>
-                    </div>
-                    
-                    <input type="hidden" id="question-id">
                 </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeQuestionModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="saveQuestion()">Save Question</button>
             </div>
         </div>
     </div>
-    
-    <!-- Import Modal -->
-    <div id="import-modal" class="modal" style="display: none;">
+
+    <!-- Import CSV Modal -->
+    <div id="importModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>Import Questions</h2>
-                <button class="close-btn" onclick="closeImportModal()">&times;</button>
+                <h3>Import Questions from CSV</h3>
+                <button class="modal-close" onclick="window.closeModal('importModal')">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="import-instructions">
-                    <h3>CSV Format Requirements:</h3>
+                    <p>Upload a CSV file with the following columns:</p>
                     <ul>
-                        <li>Columns: question, category, difficulty, correct_answer, incorrect_answer1, incorrect_answer2, incorrect_answer3</li>
-                        <li>Difficulty values: easy, medium, hard</li>
-                        <li>UTF-8 encoding required</li>
+                        <li>question</li>
+                        <li>correct_answer</li>
+                        <li>incorrect_answer_1</li>
+                        <li>incorrect_answer_2</li>
+                        <li>incorrect_answer_3</li>
+                        <li>category</li>
+                        <li>difficulty (easy/medium/hard)</li>
                     </ul>
+                    <button type="button" onclick="window.downloadTemplate()" class="btn btn-secondary">Download Template</button>
                 </div>
-                <div class="file-upload-area">
-                    <input type="file" id="csv-file" accept=".csv" style="display: none;">
-                    <button class="btn btn-primary" onclick="document.getElementById('csv-file').click()">
-                        Choose CSV File
-                    </button>
-                    <span id="file-name">No file selected</span>
-                </div>
-                <div id="import-preview" style="display: none;">
-                    <h3>Preview (first 5 rows):</h3>
-                    <div id="preview-content"></div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeImportModal()">Cancel</button>
-                <button class="btn btn-primary" onclick="importQuestions()" id="import-btn" disabled>Import</button>
+                <form id="importForm" onsubmit="window.handleImport(event)">
+                    <div class="form-group">
+                        <label for="csvFile">Select CSV File</label>
+                        <input type="file" id="csvFile" name="file" accept=".csv" required>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" onclick="window.closeModal('importModal')" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Import</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
-</div>
+
+    <!-- Export CSV Modal -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export Questions to CSV</h3>
+                <button class="modal-close" onclick="window.closeModal('exportModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Select filters to export specific questions:</p>
+                <form id="exportForm" onsubmit="window.handleExport(event)">
+                    <div class="form-group">
+                        <label for="exportCategory">Category</label>
+                        <select id="exportCategory" name="category">
+                            <option value="">All Categories</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="exportDifficulty">Difficulty</label>
+                        <select id="exportDifficulty" name="difficulty">
+                            <option value="">All Difficulties</option>
+                            <option value="easy">Easy</option>
+                            <option value="medium">Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="exportStatus">Status</label>
+                        <select id="exportStatus" name="status">
+                            <option value="">All Status</option>
+                            <option value="active">Active</option>
+                            <option value="flagged">Flagged</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" onclick="window.closeModal('exportModal')" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Export</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
