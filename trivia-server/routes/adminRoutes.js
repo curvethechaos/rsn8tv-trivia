@@ -238,7 +238,7 @@ router.get('/players', async (req, res) => {
 
         // Build the query using exact schema
         let query = db('player_profiles as pp')
-            // Get game stats from scores table
+            // Get game stats from scores table (all-time)
             .leftJoin(
                 db('scores')
                     .select('player_profile_id')
@@ -258,41 +258,78 @@ router.get('/players', async (req, res) => {
                     .as('last_played_stats'),
                 'pp.id', 'last_played_stats.player_profile_id'
             )
-            // Weekly leaderboard
+            // Weekly score - HIGHEST score for current week
             .leftJoin(
-                db('leaderboards as weekly')
-                    .select('player_profile_id', 'rank_position as weekly_rank')
-                    .where('period_type', 'weekly')
-                    .whereRaw(`period_start = date_trunc('week', CURRENT_DATE)`)
+                db('scores as weekly_scores')
+                    .select('player_profile_id')
+                    .max('score as weekly_score')
+                    .whereRaw(`DATE_TRUNC('week', submitted_at) = DATE_TRUNC('week', CURRENT_DATE)`)
+                    .groupBy('player_profile_id')
                     .as('weekly_stats'),
                 'pp.id', 'weekly_stats.player_profile_id'
             )
-            // Monthly leaderboard
+            // Monthly score - SUM of scores for current month
             .leftJoin(
-                db('leaderboards as monthly')
-                    .select('player_profile_id', 'rank_position as monthly_rank')
-                    .where('period_type', 'monthly')
-                    .whereRaw(`period_start = date_trunc('month', CURRENT_DATE)`)
+                db('scores as monthly_scores')
+                    .select('player_profile_id')
+                    .sum('score as monthly_score')
+                    .whereRaw(`DATE_TRUNC('month', submitted_at) = DATE_TRUNC('month', CURRENT_DATE)`)
+                    .groupBy('player_profile_id')
                     .as('monthly_stats'),
                 'pp.id', 'monthly_stats.player_profile_id'
             )
-            // Quarterly leaderboard
+            // Quarterly score - SUM of scores for current quarter
             .leftJoin(
-                db('leaderboards as quarterly')
-                    .select('player_profile_id', 'rank_position as quarterly_rank')
-                    .where('period_type', 'quarterly')
-                    .whereRaw(`period_start = date_trunc('quarter', CURRENT_DATE)`)
+                db('scores as quarterly_scores')
+                    .select('player_profile_id')
+                    .sum('score as quarterly_score')
+                    .whereRaw(`DATE_TRUNC('quarter', submitted_at) = DATE_TRUNC('quarter', CURRENT_DATE)`)
+                    .groupBy('player_profile_id')
                     .as('quarterly_stats'),
                 'pp.id', 'quarterly_stats.player_profile_id'
             )
-            // Yearly leaderboard
+            // Yearly score - SUM of scores for current year
             .leftJoin(
-                db('leaderboards as yearly')
+                db('scores as yearly_scores')
+                    .select('player_profile_id')
+                    .sum('score as yearly_score')
+                    .whereRaw(`DATE_TRUNC('year', submitted_at) = DATE_TRUNC('year', CURRENT_DATE)`)
+                    .groupBy('player_profile_id')
+                    .as('yearly_stats'),
+                'pp.id', 'yearly_stats.player_profile_id'
+            )
+            // Get leaderboard ranks (keeping existing functionality)
+            .leftJoin(
+                db('leaderboards as weekly_ranks')
+                    .select('player_profile_id', 'rank_position as weekly_rank')
+                    .where('period_type', 'weekly')
+                    .whereRaw(`period_start = date_trunc('week', CURRENT_DATE)`)
+                    .as('weekly_rank_stats'),
+                'pp.id', 'weekly_rank_stats.player_profile_id'
+            )
+            .leftJoin(
+                db('leaderboards as monthly_ranks')
+                    .select('player_profile_id', 'rank_position as monthly_rank')
+                    .where('period_type', 'monthly')
+                    .whereRaw(`period_start = date_trunc('month', CURRENT_DATE)`)
+                    .as('monthly_rank_stats'),
+                'pp.id', 'monthly_rank_stats.player_profile_id'
+            )
+            .leftJoin(
+                db('leaderboards as quarterly_ranks')
+                    .select('player_profile_id', 'rank_position as quarterly_rank')
+                    .where('period_type', 'quarterly')
+                    .whereRaw(`period_start = date_trunc('quarter', CURRENT_DATE)`)
+                    .as('quarterly_rank_stats'),
+                'pp.id', 'quarterly_rank_stats.player_profile_id'
+            )
+            .leftJoin(
+                db('leaderboards as yearly_ranks')
                     .select('player_profile_id', 'rank_position as yearly_rank')
                     .where('period_type', 'yearly')
                     .whereRaw(`period_start = date_trunc('year', CURRENT_DATE)`)
-                    .as('yearly_stats'),
-                'pp.id', 'yearly_stats.player_profile_id'
+                    .as('yearly_rank_stats'),
+                'pp.id', 'yearly_rank_stats.player_profile_id'
             )
             .select(
                 'pp.id',
@@ -306,10 +343,14 @@ router.get('/players', async (req, res) => {
                 db.raw('COALESCE(game_stats.highest_score, 0) as highest_score'),
                 db.raw('COALESCE(game_stats.total_score, 0) as total_score'),
                 'last_played_stats.last_played',
-                db.raw('COALESCE(weekly_stats.weekly_rank, 0) as weekly_rank'),
-                db.raw('COALESCE(monthly_stats.monthly_rank, 0) as monthly_rank'),
-                db.raw('COALESCE(quarterly_stats.quarterly_rank, 0) as quarterly_rank'),
-                db.raw('COALESCE(yearly_stats.yearly_rank, 0) as yearly_rank')
+                db.raw('COALESCE(weekly_stats.weekly_score, 0) as weekly_score'),
+                db.raw('COALESCE(monthly_stats.monthly_score, 0) as monthly_score'),
+                db.raw('COALESCE(quarterly_stats.quarterly_score, 0) as quarterly_score'),
+                db.raw('COALESCE(yearly_stats.yearly_score, 0) as yearly_score'),
+                db.raw('COALESCE(weekly_rank_stats.weekly_rank, 0) as weekly_rank'),
+                db.raw('COALESCE(monthly_rank_stats.monthly_rank, 0) as monthly_rank'),
+                db.raw('COALESCE(quarterly_rank_stats.quarterly_rank, 0) as quarterly_rank'),
+                db.raw('COALESCE(yearly_rank_stats.yearly_rank, 0) as yearly_rank')
             );
 
         // Apply search filter
@@ -357,13 +398,13 @@ router.get('/players', async (req, res) => {
                     .whereRaw(`DATE_TRUNC('week', scores.submitted_at) = DATE_TRUNC('week', CURRENT_DATE)`);
             });
         } else if (prizeEligible === 'weekly') {
-            query = query.whereNotNull('weekly_stats.weekly_rank')
-                .where('weekly_stats.weekly_rank', '>', 0)
-                .where('weekly_stats.weekly_rank', '<=', 10);
+            query = query.whereNotNull('weekly_rank_stats.weekly_rank')
+                .where('weekly_rank_stats.weekly_rank', '>', 0)
+                .where('weekly_rank_stats.weekly_rank', '<=', 10);
         } else if (prizeEligible === 'monthly') {
-            query = query.whereNotNull('monthly_stats.monthly_rank')
-                .where('monthly_stats.monthly_rank', '>', 0)
-                .where('monthly_stats.monthly_rank', '<=', 10);
+            query = query.whereNotNull('monthly_rank_stats.monthly_rank')
+                .where('monthly_rank_stats.monthly_rank', '>', 0)
+                .where('monthly_rank_stats.monthly_rank', '<=', 10);
         }
 
         // Clone query for counting before grouping
@@ -382,10 +423,14 @@ router.get('/players', async (req, res) => {
             'pp.created_at',
             'pp.device_fingerprint',
             'last_played_stats.last_played',
-            'weekly_stats.weekly_rank',
-            'monthly_stats.monthly_rank',
-            'quarterly_stats.quarterly_rank',
-            'yearly_stats.yearly_rank',
+            'weekly_stats.weekly_score',
+            'monthly_stats.monthly_score',
+            'quarterly_stats.quarterly_score',
+            'yearly_stats.yearly_score',
+            'weekly_rank_stats.weekly_rank',
+            'monthly_rank_stats.monthly_rank',
+            'quarterly_rank_stats.quarterly_rank',
+            'yearly_rank_stats.yearly_rank',
             'game_stats.games_played',
             'game_stats.highest_score',
             'game_stats.total_score'
@@ -424,7 +469,11 @@ router.get('/players', async (req, res) => {
             'highest_score': 'highest_score',
             'total_score': 'total_score',
             'created_at': 'pp.created_at',
-            'last_played': 'last_played_stats.last_played'
+            'last_played': 'last_played_stats.last_played',
+            'weekly_score': 'weekly_score',
+            'monthly_score': 'monthly_score',
+            'quarterly_score': 'quarterly_score',
+            'yearly_score': 'yearly_score'
         };
 
         const sortField = validSortFields[sortBy] || 'pp.created_at';
