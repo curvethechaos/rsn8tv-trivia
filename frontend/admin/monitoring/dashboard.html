@@ -2502,7 +2502,7 @@
                             await apiCall(`/admin/questions/${questionId}`, {
                                 method: 'PUT',
                                 body: JSON.stringify({
-                                    question_text: document.getElementById('edit-question-text').value,
+                                    question: document.getElementById('edit-question-text').value,
                                     correct_answer: document.getElementById('edit-correct').value,
                                     incorrect_answers: document.getElementById('edit-incorrect').value.split('\n').filter(a => a.trim()),
                                     category: document.getElementById('edit-category').value,

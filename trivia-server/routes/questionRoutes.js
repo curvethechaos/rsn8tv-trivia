@@ -343,8 +343,8 @@ if (Array.isArray(updateData.incorrect_answers)) {
   updateData.incorrect_answers = JSON.stringify(updateData.incorrect_answers);
 }
     // Try service first
-    if (questionService && questionService.update) {
-      const updated = await questionService.update(req.params.id, updateData);
+    if (questionService && questionService.updateQuestion) {
+      const updated = await questionService.updateQuestion(req.params.id, updateData);
       if (!updated) {
         return res.status(404).json({
           success: false,
