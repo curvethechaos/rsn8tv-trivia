@@ -2155,7 +2155,7 @@
                         </td>
                         <td>
                             <button class="btn" onclick="editQuestion(${questionId})">Edit</button>
-                            <button class="btn btn-sm" onclick="flagQuestion(${questionId}, ${isFlagged})">${isFlagged ? "Unflag" : "Flag"}</button>
+                            ${!isFlagged ? `<button class="btn" onclick="flagQuestion(${questionId})">Flag</button>` : ''}
                         </td>
                     </tr>
                 `;

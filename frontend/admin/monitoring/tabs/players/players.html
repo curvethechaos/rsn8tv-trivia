@@ -2,7 +2,7 @@
 <div class="players-container">
     <h2>Player Management</h2>
 
-    <!-- Stats Grid - Only 2 boxes as requested -->
+    <!-- Stats Grid - Only 2 boxes -->
     <div class="stats-grid">
         <div class="stat-card">
             <h3>Total Players</h3>
@@ -10,84 +10,71 @@
         </div>
         <div class="stat-card">
             <h3>Registered Today</h3>
-            <div class="stat-value" id="registeredTodayCount">0</div>
+            <div class="stat-value" id="registeredToday">0</div>
         </div>
     </div>
 
     <!-- Filters Section -->
-    <div class="filters-section">
-        <h3>Filters</h3>
-        <div class="filters-grid">
-            <div class="filter-group">
-                <label>Search</label>
-                <input type="text" id="searchInput" placeholder="Search by name or email...">
-            </div>
-            <div class="filter-group">
-                <label>Email Status</label>
-                <select id="emailFilter">
-                    <option value="">All Players</option>
-                    <option value="true">With Email</option>
-                    <option value="false">Without Email</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Marketing Consent</label>
-                <select id="marketingFilter">
-                    <option value="">All</option>
-                    <option value="true">Opted In</option>
-                    <option value="false">Opted Out</option>
-                </select>
-            </div>
-            <div class="filter-group">
-                <label>Min Highest Score</label>
-                <input type="number" id="minScoreFilter" placeholder="0" min="0">
-            </div>
-            <div class="filter-group">
-                <label>Min Total Score</label>
-                <input type="number" id="minTotalScoreFilter" placeholder="0" min="0">
-            </div>
-            <div class="filter-group">
-                <label>Registration From</label>
-                <input type="date" id="dateFrom">
-            </div>
-            <div class="filter-group">
-                <label>Registration To</label>
-                <input type="date" id="dateTo">
-            </div>
-            <div class="filter-group">
-                <label>Prize Eligible</label>
-                <select id="prizeFilter">
-                    <option value="">All Players</option>
-                    <option value="threshold">8,500+ Weekly Score</option>
-                    <option value="weekly">Weekly Leaders</option>
-                    <option value="monthly">Monthly Leaders</option>
-                </select>
-            </div>
+<!-- Updated filters section in players.html -->
+<!-- Find this section and replace it -->
+<div class="filters-section">
+    <h3>Filters</h3>
+    <div class="filters-grid">
+        <div class="filter-group">
+            <label>Search</label>
+            <input type="text" id="searchInput" placeholder="Search by name or email...">
         </div>
-        <div class="filter-actions">
-            <button class="btn btn-primary" onclick="PlayersTab.applyFilters()">Apply Filters</button>
-            <button class="btn btn-secondary" onclick="PlayersTab.resetFilters()">Reset</button>
+        <div class="filter-group">
+            <label>Min Score</label>
+            <input type="number" id="minScoreFilter" placeholder="0" min="0">
+        </div>
+        <div class="filter-group">
+            <label>Min Total Score</label>
+            <input type="number" id="minTotalScoreFilter" placeholder="0" min="0">
+        </div>
+        <div class="filter-group">
+            <label>Reg Date From</label>
+            <input type="date" id="dateFromFilter">
+        </div>
+        <div class="filter-group">
+            <label>Reg Date To</label>
+            <input type="date" id="dateToFilter">
+        </div>
+        <div class="filter-group">
+            <label>Last Played From</label>
+            <input type="date" id="lastPlayedFromFilter">
+        </div>
+        <div class="filter-group">
+            <label>Last Played To</label>
+            <input type="date" id="lastPlayedToFilter">
+        </div>
+        <div class="filter-group">
+            <label>Prize Eligible</label>
+            <select id="prizeFilter">
+                <option value="">All</option>
+                <option value="threshold">Threshold (8500+)</option>
+                <option value="weekly">Weekly Winner</option>
+                <option value="monthly">Monthly Winner</option>
+            </select>
         </div>
     </div>
-
+    <div class="filter-actions">
+        <button class="btn btn-secondary" onclick="PlayersTab.clearFilters()">Clear Filters</button>
+        <button class="btn btn-primary" onclick="PlayersTab.applyFilters()">Apply Filters</button>
+    </div>
+</div>
     <!-- Table Actions -->
     <div class="table-actions">
         <div class="actions-left">
-            <button class="btn btn-primary" onclick="PlayersTab.exportPlayers()">
-                Export Players
-            </button>
-            <button class="btn btn-success" onclick="PlayersTab.exportMarketing()">
-                Export Marketing List
-            </button>
+            <span class="selected-count" id="selectedCount">0 selected</span>
+            <button class="btn btn-secondary" id="selectAllBtn" onclick="PlayersTab.toggleSelectAll()">Select All</button>
+            <button class="btn btn-secondary" onclick="PlayersTab.exportSelected()">Export Selected</button>
+            <button class="btn btn-secondary" onclick="PlayersTab.exportMarketing()">Export Marketing List</button>
         </div>
-        <div class="actions-right">
-            <span class="selected-count">
-                <span id="selectedCount">0</span> players selected
-            </span>
-        </div>
+        <button class="btn btn-primary" onclick="PlayersTab.exportAll()">Export All</button>
     </div>
 
-    <!-- Players Table with exact column order requested -->
+    <!-- Players Table -->
     <div class="table-wrapper">
         <table class="players-table">
             <thead>
@@ -95,26 +82,46 @@
                     <th class="checkbox-column">
                         <input type="checkbox" id="selectAllCheckbox" onchange="PlayersTab.toggleSelectAll()">
                     </th>
-                    <th class="sortable" data-sort="nickname" onclick="PlayersTab.sortBy('nickname')">Player</th>
-                    <th class="sortable" data-sort="email" onclick="PlayersTab.sortBy('email')">Email</th>
-                    <th class="sortable numeric" data-sort="games_played" onclick="PlayersTab.sortBy('games_played')">Games</th>
-                    <th class="sortable numeric" data-sort="highest_score" onclick="PlayersTab.sortBy('highest_score')">High Score</th>
-                    <th class="sortable numeric" data-sort="total_score" onclick="PlayersTab.sortBy('total_score')">Total Score</th>
-                    <th class="numeric">Weekly</th>
-                    <th class="numeric">Monthly</th>
-                    <th class="numeric">Quarterly</th>
-                    <th class="numeric">Yearly</th>
-                    <th class="sortable" data-sort="created_at" onclick="PlayersTab.sortBy('created_at')">Registered</th>
-                    <th class="sortable" data-sort="last_played" onclick="PlayersTab.sortBy('last_played')">Last Played</th>
-                    <th>Current 🏆</th>
-                    <th>Past 🏆</th>
-                    <th>Actions</th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('nickname')">
+                        PLAYER <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('email')">
+                        EMAIL <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('games_played')">
+                        GAMES <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('highest_score')">
+                        HIGH SCORE <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('total_score')">
+                        TOTAL SCORE <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('weekly_score')">
+    WEEKLY <span class="sort-indicator"></span>
+</th>
+<th class="sortable" onclick="PlayersTab.sortBy('monthly_score')">
+    MONTHLY <span class="sort-indicator"></span>
+</th>
+<th class="sortable" onclick="PlayersTab.sortBy('quarterly_score')">
+    QUARTERLY <span class="sort-indicator"></span>
+</th>
+<th class="sortable" onclick="PlayersTab.sortBy('yearly_score')">
+    YEARLY <span class="sort-indicator"></span>
+</th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('created_at')">
+                        REGISTERED <span class="sort-indicator"></span>
+                    </th>
+                    <th class="sortable" onclick="PlayersTab.sortBy('last_played')">
+                        LAST PLAYED <span class="sort-indicator"></span>
+                    </th>
+                    <th>CURRENT 🏆</th>
+                    <th>PAST 🏆</th>
+                    <th>ACTIONS</th>
                 </tr>
             </thead>
             <tbody id="playersTableBody">
-                <tr>
-                    <td colspan="15" class="loading-cell">Loading players...</td>
-                </tr>
+                <!-- Players will be loaded here -->
             </tbody>
         </table>
     </div>
@@ -122,34 +129,27 @@
     <!-- Pagination -->
     <div class="pagination-wrapper">
         <div class="pagination-info">
-            Showing <span id="showingFrom">0</span>-<span id="showingTo">0</span> 
-            of <span id="totalCount">0</span> players
+            Showing <span id="showingFrom">0</span> to <span id="showingTo">0</span> of <span id="totalCount">0</span> players
         </div>
         <div class="pagination-controls">
-            <button class="btn btn-sm" id="prevBtn" onclick="PlayersTab.prevPage()" disabled>
-                Previous
-            </button>
-            <div class="page-input-group">
-                <span>Page</span>
-                <input type="number" class="page-input" id="pageInput" value="1" min="1" onchange="PlayersTab.goToPage()">
-                <span>of <span id="totalPages">1</span></span>
+            <button id="prevBtn" onclick="PlayersTab.prevPage()" disabled>Previous</button>
+            <div class="page-input-wrapper">
+                Page <input type="number" id="pageInput" value="1" min="1" onchange="PlayersTab.goToPage()"> of <span id="totalPages">1</span>
             </div>
-            <button class="btn btn-sm" id="nextBtn" onclick="PlayersTab.nextPage()" disabled>
-                Next
-            </button>
+            <button id="nextBtn" onclick="PlayersTab.nextPage()" disabled>Next</button>
         </div>
     </div>
+</div>
 
-    <!-- Player Details Modal -->
-    <div id="playerModal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Player Details</h3>
-                <button class="modal-close" onclick="PlayersTab.closeModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="playerModalBody">
-                <!-- Player details will be loaded here -->
-            </div>
+<!-- Player Detail Modal -->
+<div id="playerModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Player Details</h3>
+            <span class="modal-close" onclick="PlayersTab.closeModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="playerModalBody">
+            <!-- Player details will be loaded here -->
         </div>
     </div>
 </div>

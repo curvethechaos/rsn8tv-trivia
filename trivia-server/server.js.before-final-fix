@@ -1,0 +1,212 @@
+require('dotenv').config();
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
+const config = require('./utils/config');
+const db = require('./db/connection');
+const GameManager = require('./services/gameManager');
+const ProfanityService = require('./services/profanityService');
+const profanityMiddleware = require('./middleware/profanityMiddleware');
+const triviaAPIService = require('./services/triviaAPIService');
+
+// Import routes
+const sessionRoutes = require('./routes/sessionRoutes');
+const playerRoutes = require('./routes/playerRoutes');
+const leaderboardRoutes = require('./routes/leaderboardRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const authRoutes = require('./routes/authRoutes');
+const exportRoutes = require('./routes/exportRoutes');
+const authMiddleware = require('./middleware/authMiddleware');
+const themeRoutes    = require('./routes/themeRoutes');
+const questionRoutes = require('./routes/questionRoutes');
+const prizeRoutes    = require('./routes/prizeRoutes');
+const brandingRoutes = require('./routes/brandingRoutes');
+
+// Import Phase 1 services as CLASSES
+const ExportService = require('./services/exportService');
+const ThemeService = require('./services/themeService');
+const QuestionService = require('./services/questionService');
+const PrizeService = require('./services/prizeService');
+const BrandingService = require('./services/brandingService');
+
+// Initialize Express app and server
+const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+const io = new Server(server, {
+  cors: {
+    origin: config.app.corsOrigins || ['https://trivia.rsn8tv.com', 'http://localhost:3000'],
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  transports: ['websocket', 'polling']
+});
+
+// Initialize core services
+const gameManager = new GameManager(io, db);
+const profanityService = new ProfanityService();
+
+// ✅ FIX: Properly instantiate Phase 1 services
+const exportService = new ExportService(db);
+const themeService = new ThemeService(db);
+const questionService = new QuestionService(db);
+const prizeService = new PrizeService(db);
+const brandingService = new BrandingService(db);
+
+// ✅ CRITICAL: Attach all services to app.locals for route access
+app.locals.db = db;
+app.locals.io = io;
+app.locals.gameManager = gameManager;
+app.locals.profanityService = profanityService;
+app.locals.triviaAPIService = triviaAPIService;
+app.locals.questionService = questionService;
+app.locals.themeService = themeService;
+app.locals.prizeService = prizeService;
+app.locals.brandingService = brandingService;
+app.locals.exportService = exportService;
+
+console.log('✅ All services initialized and attached to app.locals');
+
+// Middleware
+app.use(cors({
+  origin: config.app.corsOrigins || ['https://trivia.rsn8tv.com', 'http://localhost:3000'],
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Security headers
+app.use(authMiddleware.securityHeaders);
+
+// Request logging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
+
+// Health check
+app.get('/health', async (req, res) => {
+  const games = [];
+  let totalPlayers = 0;
+
+  if (gameManager && gameManager.games) {
+    gameManager.games.forEach((game, sessionId) => {
+      const playerCount = game.players ? game.players.size : 0;
+      totalPlayers += playerCount;
+      games.push({
+        sessionId,
+        status: game.status,
+        playerCount,
+        currentQuestion: game.currentQuestion || 0
+      });
+    });
+  }
+
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    services: {
+      database: db ? 'connected' : 'disconnected',
+      socketIO: io ? 'initialized' : 'not initialized',
+      gameManager: gameManager ? 'initialized' : 'not initialized'
+    },
+    stats: {
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      activeGames: games.length,
+      totalPlayers,
+      games
+    }
+  });
+});
+
+// Route mounts
+app.use('/api/auth', authRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/players', playerRoutes);
+app.use('/api/leaderboards', leaderboardRoutes);
+
+// Admin routes with proper auth
+if (authMiddleware.verifyToken) {
+  app.use('/api/admin', authMiddleware.verifyToken, adminRoutes);
+  app.use('/api/admin/exports', authMiddleware.verifyToken, exportRoutes);
+  app.use('/api/admin/themes', authMiddleware.verifyToken, themeRoutes);
+  app.use('/api/admin/questions', authMiddleware.verifyToken, questionRoutes);
+  app.use('/api/admin/prizes', authMiddleware.verifyToken, prizeRoutes);
+  app.use('/api/admin/branding', authMiddleware.verifyToken, brandingRoutes);
+} else {
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/admin/exports', exportRoutes);
+  app.use('/api/admin/themes', themeRoutes);
+  app.use('/api/admin/questions', questionRoutes);
+  app.use('/api/admin/prizes', prizeRoutes);
+  app.use('/api/admin/branding', brandingRoutes);
+}
+
+// WebSocket authentication
+io.use(async (socket, next) => {
+  try {
+    const { sessionId, role, clientId } = socket.handshake.auth;
+    if (!sessionId || !role) return next(new Error('Missing required auth parameters'));
+    
+    const session = await db('sessions').where({ id: sessionId, is_active: true }).first();
+    if (!session) return next(new Error('Invalid or expired session'));
+    
+    socket.sessionId = sessionId;
+    socket.role = role;
+    socket.clientId = clientId;
+    next();
+  } catch (err) {
+    console.error('Socket auth error:', err);
+    next(new Error('Authentication failed'));
+  }
+});
+
+// WebSocket handlers
+io.on('connection', (socket) => {
+  console.log(`Socket connected: ${socket.id} (${socket.role} for session ${socket.sessionId})`);
+  socket.join(socket.sessionId);
+  
+  if (socket.role === 'host') {
+    require('./ws/hostHandler')(io, socket, app);
+  } else if (socket.role === 'player') {
+    require('./ws/playerHandler')(io, socket, app);
+  }
+  
+  socket.emit('CONNECTED', { 
+    socketId: socket.id, 
+    sessionId: socket.sessionId, 
+    role: socket.role 
+  });
+});
+
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ success: false, error: 'Internal server error' });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Route not found' });
+});
+
+// Start server
+const PORT = config.app.port || 3000;
+server.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+  console.log(`✅ Health check: http://localhost:${PORT}/health`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+module.exports = { app, server, io };

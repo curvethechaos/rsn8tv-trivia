@@ -1434,8 +1434,7 @@
 
         // Pagination variables for questions
         let currentQuestionPage = 1;
-        let questionsPerPage = 10000;
-        let categoriesLoaded = false;
+        let questionsPerPage = 50;
         let totalQuestions = 0;
         let allQuestions = [];
         let filteredQuestions = [];
@@ -1607,10 +1606,6 @@
                         await loadLeaderboards();
                         break;
                     case 'questions':
-                        if (!categoriesLoaded) {
-                            await loadQuestionCategories();
-                            categoriesLoaded = true;
-                        }
                         await loadQuestions();
                         break;
                     case 'categories':
@@ -2155,7 +2150,7 @@
                         </td>
                         <td>
                             <button class="btn" onclick="editQuestion(${questionId})">Edit</button>
-                            <button class="btn btn-sm" onclick="flagQuestion(${questionId}, ${isFlagged})">${isFlagged ? "Unflag" : "Flag"}</button>
+                            ${!isFlagged ? `<button class="btn" onclick="flagQuestion(${questionId})">Flag</button>` : ''}
                         </td>
                     </tr>
                 `;

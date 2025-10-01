@@ -1,68 +1,77 @@
-// Path: /var/www/html/admin/monitoring/tabs/players/players.js
+// /var/www/html/admin/monitoring/tabs/players/players.js
 
-window.PlayersTab = {
-    // State management
+const PlayersTab = {
     currentPage: 1,
+    pageSize: 50,
     totalPages: 1,
+    players: [],
+    selectedPlayers: new Set(),
     currentSort: 'created_at',
     sortOrder: 'desc',
     filters: {},
-    selectedPlayers: new Set(),
     isLoading: false,
 
-    // Initialize the tab
     init() {
-        console.log('Players tab initialized');
-        this.setupEventListeners();
+        console.log('Initializing Players Tab');
+        this.bindEventHandlers();
         this.loadPlayers();
     },
 
-    // Cleanup when switching tabs
-    cleanup() {
-        this.selectedPlayers.clear();
-    },
+bindEventHandlers() {
+    // Search on input with debounce
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                this.filters.search = e.target.value;
+                this.currentPage = 1;
+                this.loadPlayers();
+            }, 300);
+        });
+    }
+        // Filter change handlers
+ const filterElements = {
+        'minScoreFilter': 'minScore',
+        'minTotalScoreFilter': 'minTotalScore',
+        'dateFromFilter': 'dateFrom',
+        'dateToFilter': 'dateTo',
+        'lastPlayedFromFilter': 'lastPlayedFrom',
+        'lastPlayedToFilter': 'lastPlayedTo',
+        'prizeFilter': 'prizeEligible'
+    };
 
-    // Setup all event listeners
-    setupEventListeners() {
-        // Search on Enter key
-        const searchInput = document.getElementById('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.applyFilters();
+    Object.entries(filterElements).forEach(([elementId, filterKey]) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.addEventListener('change', () => {
+                this.filters[filterKey] = element.value;
             });
         }
+    });
+},
 
-        // Page input on Enter key
-        const pageInput = document.getElementById('pageInput');
-        if (pageInput) {
-            pageInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.goToPage();
-            });
-        }
-    },
 
-    // Load players from API
     async loadPlayers() {
         if (this.isLoading) return;
+        
         this.isLoading = true;
         this.showLoading(true);
 
         try {
-            // Build URLSearchParams manually to ensure proper encoding
-            const params = new URLSearchParams();
-            params.append('page', this.currentPage);
-            params.append('limit', 20);
-            params.append('sortBy', this.currentSort);
-            params.append('sortOrder', this.sortOrder);
-
-            // Add filters individually to ensure proper handling
-            Object.entries(this.filters).forEach(([key, value]) => {
-                if (value !== '' && value !== null && value !== undefined) {
-                    params.append(key, value);
-                }
+            const params = new URLSearchParams({
+                page: this.currentPage,
+                limit: this.pageSize,
+                sortBy: this.currentSort,
+                sortOrder: this.sortOrder,
+                ...this.filters
             });
 
-            console.log('Loading players with params:', params.toString()); // Debug log
+            // Remove empty filter values
+            Array.from(params.keys()).forEach(key => {
+                if (!params.get(key)) params.delete(key);
+            });
 
             const authToken = localStorage.getItem('authToken');
             const response = await fetch(`/api/admin/players?${params}`, {
@@ -73,9 +82,8 @@ window.PlayersTab = {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    // Handle auth refresh
-                    await this.refreshAuth();
-                    return this.loadPlayers();
+                    window.location.href = '/admin/login.html';
+                    return;
                 }
                 throw new Error('Failed to load players');
             }
@@ -83,7 +91,7 @@ window.PlayersTab = {
             const data = await response.json();
             
             if (data.success) {
-                this.displayPlayers(data.data || []); // Fixed: use data.data instead of data.players
+                this.displayPlayers(data.data || []); 
                 this.updatePagination(data.pagination || {});
                 this.updateStats(data.stats || {});
             }
@@ -96,75 +104,75 @@ window.PlayersTab = {
         }
     },
 
-    // Display players in the table
-    displayPlayers(players) {
-        const tbody = document.getElementById('playersTableBody');
-        if (!tbody) return;
+    // Replace the displayPlayers method
+displayPlayers(players) {
+    const tbody = document.getElementById('playersTableBody');
+    if (!tbody) return;
 
-        if (players.length === 0) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="15" class="empty-state">
-                        <h3>No players found</h3>
-                        <p>Try adjusting your filters or search criteria</p>
-                    </td>
-                </tr>
-            `;
-            return;
-        }
+    if (players.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="15" class="empty-state">
+                    <h3>No players found</h3>
+                    <p>Try adjusting your filters or search criteria</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
 
-        tbody.innerHTML = players.map(player => {
-            const displayName = player.nickname || player.display_name || player.temporary_name || 'Unknown';
+    tbody.innerHTML = players.map(player => {
+        const displayName = player.nickname || player.display_name || player.temporary_name || 'Unknown';
+        const realName = player.real_name || '';
 
-            // Display ranks only if greater than 0, otherwise show '-'
-            const weeklyRank = (player.weekly_rank && player.weekly_rank > 0) ? player.weekly_rank : '-';
-            const monthlyRank = (player.monthly_rank && player.monthly_rank > 0) ? player.monthly_rank : '-';
-            const quarterlyRank = (player.quarterly_rank && player.quarterly_rank > 0) ? player.quarterly_rank : '-';
-            const yearlyRank = (player.yearly_rank && player.yearly_rank > 0) ? player.yearly_rank : '-';
+        // Display SCORES for weekly/monthly/quarterly/yearly, not ranks
+        const weeklyScore = player.weekly_score || 0;
+        const monthlyScore = player.monthly_score || 0;
+        const quarterlyScore = player.quarterly_score || 0;
+        const yearlyScore = player.yearly_score || 0;
 
-            // Determine current winner status
-            const currentWinner = this.getCurrentWinnerStatus(player);
-            const pastWinner = player.has_won_prize ? '🏆' : '-';
+        // Determine current winner status based on ranks
+        const currentWinner = this.getCurrentWinnerStatus(player);
+        const pastWinner = player.has_won_prize ? '🏆' : '-';
 
-            return `
-                <tr data-player-id="${player.id}">
-                    <td class="checkbox-column">
-                        <input type="checkbox"
-                               value="${player.id}"
-                               onchange="PlayersTab.togglePlayerSelection(${player.id})"
-                               ${this.selectedPlayers.has(player.id) ? 'checked' : ''}>
-                    </td>
-                    <td>
-                        <div class="player-info">
-                            <span class="player-nickname">${this.escapeHtml(displayName)}</span>
-                            ${player.real_name ? `<span class="player-realname">${this.escapeHtml(player.real_name)}</span>` : ''}
-                        </div>
-                    </td>
-                    <td>${player.email ? this.escapeHtml(player.email) : '<span style="color: #666">Not registered</span>'}</td>
-                    <td class="numeric">${player.games_played}</td>
-                    <td class="numeric">${player.highest_score}</td>
-                    <td class="numeric">${player.total_score}</td>
-                    <td class="numeric">${weeklyRank}</td>
-                    <td class="numeric">${monthlyRank}</td>
-                    <td class="numeric">${quarterlyRank}</td>
-                    <td class="numeric">${yearlyRank}</td>
-                    <td>${this.formatDate(player.created_at)}</td>
-                    <td>${player.last_played ? this.formatDate(player.last_played) : 'Never'}</td>
-                    <td class="text-center">${currentWinner}</td>
-                    <td class="text-center">${pastWinner}</td>
-                    <td>
-                        <button class="btn-view" onclick="PlayersTab.viewPlayer(${player.id})">
-                            View
-                        </button>
-                    </td>
-                </tr>
-            `;
-        }).join('');
+        return `
+            <tr data-player-id="${player.id}">
+                <td class="checkbox-column">
+                    <input type="checkbox"
+                           value="${player.id}"
+                           onchange="PlayersTab.togglePlayerSelection(${player.id})"
+                           ${this.selectedPlayers.has(player.id) ? 'checked' : ''}>
+                </td>
+                <td>
+                    <div class="player-info">
+                        <div class="player-nickname">${this.escapeHtml(displayName)}</div>
+                        ${realName ? `<div class="player-realname">${this.escapeHtml(realName)}</div>` : ''}
+                    </div>
+                </td>
+                <td>${this.escapeHtml(player.email || '-')}</td>
+                <td class="text-center">${player.games_played || 0}</td>
+                <td class="text-right">${player.highest_score || 0}</td>
+                <td class="text-right">${player.total_score || 0}</td>
+                <td class="text-center">${weeklyScore}</td>
+                <td class="text-center">${monthlyScore}</td>
+                <td class="text-center">${quarterlyScore}</td>
+                <td class="text-center">${yearlyScore}</td>
+                <td>${this.formatDate(player.created_at)}</td>
+                <td>${player.last_played ? this.formatDate(player.last_played) : 'Never'}</td>
+                <td class="text-center">${currentWinner}</td>
+                <td class="text-center">${pastWinner}</td>
+                <td>
+                    <button class="btn-view" onclick="PlayersTab.viewPlayer(${player.id})">
+                        View
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
 
-        this.updateSelectedCount();
-    },
+    this.updateSelectedCount();
+},
 
-    // Helper to determine current winner status
     getCurrentWinnerStatus(player) {
         // Check if player is currently winning any period
         if (player.weekly_rank === 1) return 'W';
@@ -172,18 +180,16 @@ window.PlayersTab = {
         if (player.quarterly_rank === 1) return 'Q';
         if (player.yearly_rank === 1) return 'Y';
         
-        // Check for threshold achievement
-        // Note: Backend doesn't currently return weekly_score, using highest_score as proxy
+        // Check for threshold achievement (8500 points)
         if (player.highest_score >= 8500) return 'T';
         
         return '-';
     },
 
-    // Update statistics - Fixed to match HTML element IDs
     updateStats(stats) {
         const elements = {
             'totalPlayersCount': stats.total || 0,
-            'registeredTodayCount': stats.registeredToday || 0
+            'registeredToday': stats.registeredToday || 0
         };
 
         Object.entries(elements).forEach(([id, value]) => {
@@ -192,7 +198,6 @@ window.PlayersTab = {
         });
     },
 
-    // Update pagination controls
     updatePagination(pagination) {
         this.currentPage = pagination.page || 1;
         this.totalPages = pagination.pages || 1;
@@ -221,7 +226,6 @@ window.PlayersTab = {
         if (nextBtn) nextBtn.disabled = this.currentPage >= this.totalPages;
     },
 
-    // Sort by column
     sortBy(field) {
         if (this.currentSort === field) {
             this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc';
@@ -229,112 +233,75 @@ window.PlayersTab = {
             this.currentSort = field;
             this.sortOrder = 'desc';
         }
-
-        // Update UI to show sort direction
-        document.querySelectorAll('th[data-sort]').forEach(th => {
-            th.classList.remove('sort-asc', 'sort-desc');
-        });
-
-        const currentTh = document.querySelector(`th[data-sort="${field}"]`);
-        if (currentTh) {
-            currentTh.classList.add(this.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
-        }
-
         this.currentPage = 1;
         this.loadPlayers();
     },
 
-    // Apply filters
     applyFilters() {
-        // Get filter values and ensure proper types
-        const filters = {
-            search: document.getElementById('searchInput')?.value || '',
-            hasEmail: document.getElementById('emailFilter')?.value || '',
-            marketingConsent: document.getElementById('marketingFilter')?.value || '',
-            minScore: document.getElementById('minScoreFilter')?.value || '',
-            minTotalScore: document.getElementById('minTotalScoreFilter')?.value || '',
-            dateFrom: document.getElementById('dateFrom')?.value || '',
-            dateTo: document.getElementById('dateTo')?.value || '',
-            prizeEligible: document.getElementById('prizeFilter')?.value || ''
-        };
-
-        // Only include filters with actual values
-        this.filters = {};
-        Object.entries(filters).forEach(([key, value]) => {
-            if (value !== '' && value !== null && value !== undefined) {
-                this.filters[key] = value;
-            }
-        });
-
-        console.log('Applying filters:', this.filters); // Debug log
-
         this.currentPage = 1;
         this.loadPlayers();
     },
 
-    // Reset all filters
-    resetFilters() {
-        ['searchInput', 'emailFilter', 'marketingFilter', 'minScoreFilter',
-         'minTotalScoreFilter', 'dateFrom', 'dateTo', 'prizeFilter'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.value = '';
-        });
-
-        this.filters = {};
-        this.currentPage = 1;
-        this.loadPlayers();
-    },
-
-    // Toggle select all
+clearFilters() {
+    // Clear all filter inputs
+    document.getElementById('searchInput').value = '';
+    document.getElementById('minScoreFilter').value = '';
+    document.getElementById('minTotalScoreFilter').value = '';
+    document.getElementById('dateFromFilter').value = '';
+    document.getElementById('dateToFilter').value = '';
+    document.getElementById('lastPlayedFromFilter').value = '';
+    document.getElementById('lastPlayedToFilter').value = '';
+    document.getElementById('prizeFilter').value = '';
+    
+    // Clear filters object
+    this.filters = {};
+    
+    // Reload
+    this.currentPage = 1;
+    this.loadPlayers();
+},
     toggleSelectAll() {
         const checkbox = document.getElementById('selectAllCheckbox');
-        const playerCheckboxes = document.querySelectorAll('#playersTableBody input[type="checkbox"]');
-
-        playerCheckboxes.forEach(cb => {
-            cb.checked = checkbox.checked;
-            const playerId = parseInt(cb.value);
-            if (checkbox.checked) {
-                this.selectedPlayers.add(playerId);
-            } else {
-                this.selectedPlayers.delete(playerId);
-            }
-        });
-
+        const checkboxes = document.querySelectorAll('#playersTableBody input[type="checkbox"]');
+        
+        if (checkbox.checked) {
+            checkboxes.forEach(cb => {
+                cb.checked = true;
+                this.selectedPlayers.add(parseInt(cb.value));
+            });
+        } else {
+            checkboxes.forEach(cb => {
+                cb.checked = false;
+            });
+            this.selectedPlayers.clear();
+        }
+        
         this.updateSelectedCount();
     },
 
-    // Toggle individual player selection
     togglePlayerSelection(playerId) {
         if (this.selectedPlayers.has(playerId)) {
             this.selectedPlayers.delete(playerId);
         } else {
             this.selectedPlayers.add(playerId);
         }
-
         this.updateSelectedCount();
-
-        // Update select all checkbox
-        const allCheckboxes = document.querySelectorAll('#playersTableBody input[type="checkbox"]');
-        const checkedCount = document.querySelectorAll('#playersTableBody input[type="checkbox"]:checked').length;
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-
-        if (selectAllCheckbox) {
-            selectAllCheckbox.checked = allCheckboxes.length > 0 && allCheckboxes.length === checkedCount;
-        }
     },
 
-    // Update selected count display
     updateSelectedCount() {
-        const countEl = document.getElementById('selectedCount');
-        if (countEl) {
-            countEl.textContent = this.selectedPlayers.size;
+        const count = this.selectedPlayers.size;
+        const el = document.getElementById('selectedCount');
+        if (el) el.textContent = `${count} selected`;
+        
+        // Update select all checkbox state
+        const selectAll = document.getElementById('selectAllCheckbox');
+        const totalCheckboxes = document.querySelectorAll('#playersTableBody input[type="checkbox"]').length;
+        if (selectAll) {
+            selectAll.checked = count > 0 && count === totalCheckboxes;
         }
     },
 
-    // Export players
-    async exportPlayers() {
-        if (!confirm('Export all players matching current filters?')) return;
-
+    async exportAll() {
         try {
             const authToken = localStorage.getItem('authToken');
             const response = await fetch('/api/admin/exports', {
@@ -349,20 +316,21 @@ window.PlayersTab = {
                 })
             });
 
-            if (response.ok) {
-                this.showSuccess('Export started. Check the Exports tab for progress.');
-            } else {
-                throw new Error('Export failed');
-            }
+            if (!response.ok) throw new Error('Export failed');
+
+            const data = await response.json();
+            this.showMessage('Export started. Check the Exports tab.', 'success');
         } catch (error) {
             console.error('Export error:', error);
-            this.showError('Failed to start export. Please try again.');
+            this.showMessage('Failed to start export', 'error');
         }
     },
 
-    // Export marketing list
-    async exportMarketing() {
-        if (!confirm('Export marketing list (players with email consent)?')) return;
+    async exportSelected() {
+        if (this.selectedPlayers.size === 0) {
+            this.showMessage('No players selected', 'error');
+            return;
+        }
 
         try {
             const authToken = localStorage.getItem('authToken');
@@ -373,23 +341,51 @@ window.PlayersTab = {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    type: 'marketing_list',
-                    filters: this.filters
+                    type: 'players',
+                    filters: {
+                        ...this.filters,
+                        playerIds: Array.from(this.selectedPlayers)
+                    }
                 })
             });
 
-            if (response.ok) {
-                this.showSuccess('Marketing export started. Check the Exports tab for progress.');
-            } else {
-                throw new Error('Export failed');
-            }
+            if (!response.ok) throw new Error('Export failed');
+
+            const data = await response.json();
+            this.showMessage('Export started. Check the Exports tab.', 'success');
         } catch (error) {
             console.error('Export error:', error);
-            this.showError('Failed to start export. Please try again.');
+            this.showMessage('Failed to start selected export', 'error');
         }
     },
 
-    // View player details
+    async exportMarketing() {
+        try {
+            const authToken = localStorage.getItem('authToken');
+            const response = await fetch('/api/admin/exports', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: 'marketing',
+                    filters: {
+                        marketingConsent: true
+                    }
+                })
+            });
+
+            if (!response.ok) throw new Error('Export failed');
+
+            const data = await response.json();
+            this.showMessage('Marketing export started. Check the Exports tab.', 'success');
+        } catch (error) {
+            console.error('Export error:', error);
+            this.showMessage('Failed to start marketing export', 'error');
+        }
+    },
+
     async viewPlayer(playerId) {
         try {
             const authToken = localStorage.getItem('authToken');
@@ -399,22 +395,25 @@ window.PlayersTab = {
                 }
             });
 
-            if (!response.ok) throw new Error('Failed to load player');
+            if (!response.ok) throw new Error('Failed to load player details');
 
             const data = await response.json();
-            const player = data.profile || data; // Handle different response structures
-            this.showPlayerModal(player);
+            
+            if (data.profile) {
+                this.showPlayerModal(data.profile);
+            } else {
+                this.showError('Player not found');
+            }
         } catch (error) {
-            console.error('Error loading player:', error);
-            this.showError('Failed to load player details.');
+            console.error('Error viewing player:', error);
+            this.showError('Failed to load player details');
         }
     },
 
-    // Show player modal
     showPlayerModal(player) {
         const modal = document.getElementById('playerModal');
         const modalBody = document.getElementById('playerModalBody');
-
+        
         if (!modal || !modalBody) return;
 
         modalBody.innerHTML = `
@@ -430,15 +429,17 @@ window.PlayersTab = {
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Email:</span>
-                    <span class="detail-value">${this.escapeHtml(player.email || 'Not registered')}</span>
+                    <span class="detail-value">${this.escapeHtml(player.email || 'N/A')}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Marketing Consent:</span>
-                    <span class="badge ${player.marketing_consent ? 'badge-success' : 'badge-danger'}">
-                        ${player.marketing_consent ? 'Yes' : 'No'}
+                    <span class="detail-value">
+                        <span class="badge ${player.marketing_consent ? 'badge-success' : 'badge-danger'}">
+                            ${player.marketing_consent ? 'Yes' : 'No'}
+                        </span>
                     </span>
                 </div>
-
+                
                 <h4 style="margin-top: 20px;">Game Statistics</h4>
                 <div class="detail-row">
                     <span class="detail-label">Games Played:</span>
@@ -452,29 +453,7 @@ window.PlayersTab = {
                     <span class="detail-label">Total Score:</span>
                     <span class="detail-value">${player.total_score || 0}</span>
                 </div>
-                <div class="detail-row">
-                    <span class="detail-label">Average Score:</span>
-                    <span class="detail-value">${player.average_score ? player.average_score.toFixed(0) : 0}</span>
-                </div>
-
-                <h4 style="margin-top: 20px;">Leaderboard Rankings</h4>
-                <div class="detail-row">
-                    <span class="detail-label">Weekly Rank:</span>
-                    <span class="detail-value">${player.weekly_rank || '-'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Monthly Rank:</span>
-                    <span class="detail-value">${player.monthly_rank || '-'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Quarterly Rank:</span>
-                    <span class="detail-value">${player.quarterly_rank || '-'}</span>
-                </div>
-                <div class="detail-row">
-                    <span class="detail-label">Yearly Rank:</span>
-                    <span class="detail-value">${player.yearly_rank || '-'}</span>
-                </div>
-
+                
                 <h4 style="margin-top: 20px;">Account Information</h4>
                 <div class="detail-row">
                     <span class="detail-label">Registered:</span>
@@ -490,7 +469,6 @@ window.PlayersTab = {
         modal.style.display = 'flex';
     },
 
-    // Close modal
     closeModal() {
         const modal = document.getElementById('playerModal');
         if (modal) {
@@ -498,7 +476,6 @@ window.PlayersTab = {
         }
     },
 
-    // Pagination controls
     prevPage() {
         if (this.currentPage > 1) {
             this.currentPage--;
@@ -516,7 +493,7 @@ window.PlayersTab = {
     goToPage() {
         const input = document.getElementById('pageInput');
         const page = parseInt(input.value);
-
+        
         if (page >= 1 && page <= this.totalPages) {
             this.currentPage = page;
             this.loadPlayers();
@@ -525,7 +502,6 @@ window.PlayersTab = {
         }
     },
 
-    // UI helpers
     showLoading(show) {
         const tbody = document.getElementById('playersTableBody');
         if (tbody && show) {
@@ -534,18 +510,26 @@ window.PlayersTab = {
     },
 
     showError(message) {
-        // You can implement a toast notification here
-        console.error(message);
-        alert(message); // Simple fallback
+        this.showMessage(message, 'error');
     },
 
-    showSuccess(message) {
-        // You can implement a toast notification here
-        console.log(message);
-        alert(message); // Simple fallback
+    showMessage(message, type = 'info') {
+        // Create message element if it doesn't exist
+        let messageEl = document.querySelector('.message');
+        if (!messageEl) {
+            messageEl = document.createElement('div');
+            messageEl.className = 'message';
+            document.querySelector('.players-container').insertBefore(messageEl, document.querySelector('.stats-grid'));
+        }
+
+        messageEl.textContent = message;
+        messageEl.className = `message ${type} show`;
+
+        setTimeout(() => {
+            messageEl.classList.remove('show');
+        }, 3000);
     },
 
-    // Escape HTML to prevent XSS
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -553,7 +537,6 @@ window.PlayersTab = {
         return div.innerHTML;
     },
 
-    // Format date
     formatDate(dateString) {
         if (!dateString) return 'N/A';
         const date = new Date(dateString);
@@ -562,34 +545,8 @@ window.PlayersTab = {
             month: 'short',
             day: 'numeric'
         });
-    },
-
-    // Auth refresh helper
-    async refreshAuth() {
-        try {
-            const refreshToken = localStorage.getItem('refreshToken');
-            const response = await fetch('/api/auth/refresh', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ refreshToken })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('authToken', data.accessToken);
-                if (data.refreshToken) {
-                    localStorage.setItem('refreshToken', data.refreshToken);
-                }
-                return true;
-            }
-        } catch (error) {
-            console.error('Auth refresh failed:', error);
-        }
-
-        // Redirect to login if refresh fails
-        window.location.href = '/admin/login.html';
-        return false;
     }
 };
+
+// Make PlayersTab globally accessible
+window.PlayersTab = PlayersTab;
