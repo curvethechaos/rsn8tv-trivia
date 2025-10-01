@@ -1,6 +1,7 @@
-// services/questionService.js - Question management service using questions table
+// services/questionService.js - Complete Question Management Service
 const db = require('../db/connection');
 const Papa = require('papaparse');
+const fs = require('fs').promises;
 
 class QuestionService {
   constructor() {
@@ -19,44 +20,35 @@ class QuestionService {
       'Entertainment: Books',
       'Entertainment: Film',
       'Entertainment: Music',
-      'Entertainment: Musicals & Theatres',
       'Entertainment: Television',
       'Entertainment: Video Games',
-      'Entertainment: Board Games',
-      'Entertainment: Comics',
-      'Entertainment: Japanese Anime & Manga',
-      'Entertainment: Cartoon & Animations',
       'Science: Computers',
       'Science: Mathematics',
-      'Science: Gadgets',
       'Mythology'
     ];
   }
 
-  // Get questions with filters and statistics
   async getQuestions(options = {}) {
-    const {
-      page = 1,
-      limit = 50,
-      difficulty,
-      category,
-      search,
-      status
-    } = options;
-
+    const { page = 1, limit = 50, difficulty, category, search, status } = options;
     const offset = (page - 1) * limit;
 
-    // Build query with statistics
-    let query = db('question_cache as q')
+    // Build query - use 'questions' table (admin-managed)
+    let query = db('questions as q')
       .leftJoin(
         db('question_responses')
           .select('question_id')
           .count('* as times_used')
-          .select(db.raw('sum(CASE WHEN is_correct THEN 1 ELSE 0 END) as correct_count'))
+          .sum(db.raw('CASE WHEN is_correct THEN 1 ELSE 0 END as correct_count'))
           .groupBy('question_id')
           .as('stats'),
         'q.id', 'stats.question_id'
       )
+      .select(
+        'q.*',
+        db.raw('COALESCE(stats.times_used, 0) as times_used'),
+        db.raw('CASE WHEN stats.times_used > 0 THEN ROUND((stats.correct_count::numeric / stats.times_used) * 100, 2) ELSE 0 END as success_rate')
+      );
+
     // Apply filters
     if (difficulty && difficulty !== 'all') {
       query = query.where('q.difficulty', difficulty);
@@ -91,308 +83,118 @@ class QuestionService {
     return {
       questions: questions.map(q => ({
         ...q,
-        incorrect_answers: typeof q.incorrect_answers === 'string'
-          ? JSON.parse(q.incorrect_answers)
-          : q.incorrect_answers
+        incorrect_answers: typeof q.incorrect_answers === 'string' 
+          ? JSON.parse(q.incorrect_answers) 
+          : q.incorrect_answers,
+        status: q.is_flagged ? 'flagged' : (q.is_custom ? 'custom' : 'active')
       })),
-      totalCount,
-      flaggedCount,
-      customCount
+      totalCount: parseInt(totalCount),
+      flaggedCount: parseInt(flaggedCount),
+      customCount: parseInt(customCount)
     };
   }
 
-  // Get single question by ID
-  async getById(id) {
-    const question = await db('question_cache')
-      .where('id', id)
-      .first();
-
-    if (question && typeof question.incorrect_answers === 'string') {
-      question.incorrect_answers = JSON.parse(question.incorrect_answers);
+  async getQuestionCount(options = {}) {
+    let query = db('questions').count('id as count');
+    
+    if (options.difficulty && options.difficulty !== 'all') {
+      query = query.where('difficulty', options.difficulty);
     }
-
-    return question;
+    if (options.category && options.category !== 'all') {
+      query = query.where('category', options.category);
+    }
+    if (options.search) {
+      query = query.where('question', 'ilike', `%${options.search}%`);
+    }
+    if (options.status === 'flagged') {
+      query = query.where('is_flagged', true);
+    } else if (options.status === 'custom') {
+      query = query.where('is_custom', true);
+    }
+    
+    const result = await query;
+    return result[0].count;
   }
 
-  // Create new question
-  async create(data) {
-    const {
-      question,
-      correct_answer,
-      incorrect_answers,
-      category,
-      difficulty,
-      created_by
-    } = data;
-
-    // Validate incorrect_answers is an array
-    const incorrectAnswersArray = Array.isArray(incorrect_answers)
-      ? incorrect_answers
-      : [incorrect_answers];
-
-    const [created] = await db('question_cache')
-      .insert({
-        question,
-        correct_answer,
-        incorrect_answers: JSON.stringify(incorrectAnswersArray),
-        category,
-        difficulty,
-        is_custom: true,
-        created_by,
-        created_at: new Date(),
-        updated_at: new Date()
-      })
-      .returning('*');
-
-    created.incorrect_answers = incorrectAnswersArray;
-    return created;
+  async getFlaggedCount() {
+    const result = await db('questions').where('is_flagged', true).count('id as count');
+    return result[0].count;
   }
 
-  // Update existing question
-  async update(id, data) {
-    const updateData = {
-      updated_at: new Date()
-    };
-
-    // Map fields that can be updated
-    if (data.question) updateData.question = data.question;
-    if (data.correct_answer) updateData.correct_answer = data.correct_answer;
-    if (data.category) updateData.category = data.category;
-    if (data.difficulty) updateData.difficulty = data.difficulty;
-    if (data.updated_by) updateData.updated_by = data.updated_by;
-
-    // Handle incorrect_answers
-    if (data.incorrect_answers) {
-      updateData.incorrect_answers = JSON.stringify(
-        Array.isArray(data.incorrect_answers)
-          ? data.incorrect_answers
-          : [data.incorrect_answers]
-      );
-    }
-
-    const [updated] = await db('question_cache')
-      .where('id', id)
-      .update(updateData)
-      .returning('*');
-
-    if (updated && typeof updated.incorrect_answers === 'string') {
-      updated.incorrect_answers = JSON.parse(updated.incorrect_answers);
-    }
-
-    return updated;
+  async getCustomCount() {
+    const result = await db('questions').where('is_custom', true).count('id as count');
+    return result[0].count;
   }
 
-  // Delete question (soft delete - we don't actually have is_deleted column, so just return)
-  async remove(id) {
-    // Since there's no is_deleted column, we'll just flag it
-    const [removed] = await db('question_cache')
-      .where('id', id)
-      .update({
-        is_flagged: true,
-        flagged_at: new Date()
-      })
-      .returning('*');
-
-    return removed;
-  }
-
-  // Flag or unflag a question
-  async flagQuestion(id, userId, reason = null) {
-    const question = await this.getById(id);
-    if (!question) return null;
-
-    const updateData = {
-      is_flagged: !question.is_flagged,
-      flag_reason: !question.is_flagged ? reason : null,
-      flagged_by: !question.is_flagged ? userId : null,
-      flagged_at: !question.is_flagged ? new Date() : null
-    };
-
-    const [updated] = await db('question_cache')
-      .where('id', id)
-      .update(updateData)
-      .returning('*');
-
-    if (updated && typeof updated.incorrect_answers === 'string') {
-      updated.incorrect_answers = JSON.parse(updated.incorrect_answers);
-    }
-
-    return updated;
-  }
-
-  // Import questions from CSV
-  async importQuestions(file) {
-    const csvContent = file.buffer.toString('utf-8');
-
-    // Parse CSV
-    const parseResult = Papa.parse(csvContent, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim().toLowerCase().replace(/\s+/g, '_')
-    });
-
-    if (parseResult.errors.length > 0) {
-      throw new Error(`CSV parsing failed: ${parseResult.errors[0].message}`);
-    }
-
-    const errors = [];
-    let imported = 0;
-
-    // Process each row
-    for (let i = 0; i < parseResult.data.length; i++) {
-      const row = parseResult.data[i];
-
-      try {
-        // Validate required fields
-        if (!row.question || !row.correct_answer || !row.category || !row.difficulty) {
-          errors.push({ row: i + 2, error: 'Missing required fields' });
-          continue;
-        }
-
-        // Parse incorrect answers
-        const incorrectAnswers = [];
-        if (row.incorrect_answer_1) incorrectAnswers.push(row.incorrect_answer_1.trim());
-        if (row.incorrect_answer_2) incorrectAnswers.push(row.incorrect_answer_2.trim());
-        if (row.incorrect_answer_3) incorrectAnswers.push(row.incorrect_answer_3.trim());
-
-        if (incorrectAnswers.length !== 3) {
-          errors.push({ row: i + 2, error: 'Must have exactly 3 incorrect answers' });
-          continue;
-        }
-
-        // Validate difficulty
-        if (!['easy', 'medium', 'hard'].includes(row.difficulty.toLowerCase())) {
-          errors.push({ row: i + 2, error: 'Invalid difficulty (must be easy, medium, or hard)' });
-          continue;
-        }
-
-        // Insert question
-        await db('question_cache').insert({
-          question: row.question.trim(),
-          correct_answer: row.correct_answer.trim(),
-          incorrect_answers: JSON.stringify(incorrectAnswers),
-          category: row.category.trim(),
-          difficulty: row.difficulty.toLowerCase(),
-          is_custom: true,
-          created_at: new Date(),
-          updated_at: new Date()
-        });
-
-        imported++;
-
-      } catch (error) {
-        errors.push({ row: i + 2, error: error.message });
-      }
-    }
-
-    return {
-      imported,
-      errors,
-      total: parseResult.data.length
-    };
-  }
-
-  // Get all categories
   async getCategories() {
-    // Query distinct categories from database
-    const result = await db('question_cache')
+    const result = await db('questions')
       .distinct('category')
       .whereNotNull('category')
       .orderBy('category');
-
     return result.map(r => r.category);
   }
 
-  // Get total question count with filters
-  async getQuestionCount(filters = {}) {
-    let query = db('question_cache');
+  async flagQuestion(questionId, userId, reason) {
+    const question = await db('questions').where('id', questionId).first();
+    if (!question) throw new Error('Question not found');
 
-    if (filters.difficulty && filters.difficulty !== 'all') {
-      query = query.where('difficulty', filters.difficulty);
-    }
-    if (filters.category && filters.category !== 'all') {
-      query = query.where('category', filters.category);
-    }
-    if (filters.search) {
-      query = query.where('question', 'ilike', `%${filters.search}%`);
-    }
-    if (filters.status === 'flagged') {
-      query = query.where('is_flagged', true);
-    } else if (filters.status === 'custom') {
-      query = query.where('is_custom', true);
-    } else if (filters.status === 'active') {
-      query = query.where('is_flagged', false);
-    }
+    await db('questions')
+      .where('id', questionId)
+      .update({
+        is_flagged: !question.is_flagged,
+        flag_reason: !question.is_flagged ? reason : null,
+        flagged_by: !question.is_flagged ? userId : null,
+        flagged_at: !question.is_flagged ? db.fn.now() : null,
+        updated_at: db.fn.now()
+      });
 
-    const result = await query.count('id as count');
-    return parseInt(result[0].count);
+    return { success: true, is_flagged: !question.is_flagged };
   }
 
-  // Get flagged question count
-  async getFlaggedCount() {
-    const result = await db('question_cache')
-      .where('is_flagged', true)
-      .count('id as count');
-    return parseInt(result[0].count);
+  async updateQuestion(questionId, updates, userId) {
+    await db('questions')
+      .where('id', questionId)
+      .update({
+        ...updates,
+        updated_by: userId,
+        updated_at: db.fn.now()
+      });
+    return { success: true };
   }
 
-  // Get custom question count
-  async getCustomCount() {
-    const result = await db('question_cache')
-      .where('is_custom', true)
-      .count('id as count');
-    return parseInt(result[0].count);
+  async exportQuestions(filters = {}) {
+    let query = db('questions').select('*');
+    
+    if (filters.difficulty) query = query.where('difficulty', filters.difficulty);
+    if (filters.category) query = query.where('category', filters.category);
+    if (filters.status === 'flagged') query = query.where('is_flagged', true);
+    
+    const questions = await query;
+    return questions;
   }
 
-  // Bulk flag questions
-  async bulkFlag(questionIds, userId, reason) {
-    const results = {
-      flagged: [],
-      failed: []
-    };
-
-    for (const id of questionIds) {
-      try {
-        await db('question_cache')
-          .where('id', id)
-          .update({
-            is_flagged: true,
-            flag_reason: reason,
-            flagged_by: userId,
-            flagged_at: new Date()
-          });
-        results.flagged.push(id);
-      } catch (error) {
-        results.failed.push(id);
-      }
+  async importQuestions(csvPath, userId) {
+    const fileContent = await fs.readFile(csvPath, 'utf8');
+    const parsed = Papa.parse(fileContent, { header: true, skipEmptyLines: true });
+    
+    const imported = [];
+    for (const row of parsed.data) {
+      const inserted = await db('questions').insert({
+        question: row.question,
+        correct_answer: row.correct_answer,
+        incorrect_answers: JSON.stringify([row.incorrect_1, row.incorrect_2, row.incorrect_3].filter(Boolean)),
+        category: row.category,
+        difficulty: row.difficulty || 'medium',
+        is_custom: true,
+        created_by: userId,
+        created_at: db.fn.now()
+      }).returning('id');
+      
+      imported.push(inserted[0]);
     }
-
-    return results;
-  }
-
-  // Bulk delete questions (soft delete by flagging)
-  async bulkDelete(questionIds) {
-    const results = {
-      deleted: [],
-      failed: []
-    };
-
-    for (const id of questionIds) {
-      try {
-        await db('question_cache')
-          .where('id', id)
-          .update({
-            is_flagged: true,
-            flagged_at: new Date()
-          });
-        results.deleted.push(id);
-      } catch (error) {
-        results.failed.push(id);
-      }
-    }
-
-    return results;
+    
+    return { success: true, imported: imported.length };
   }
 }
 
-module.exports = new QuestionService();
+module.exports = QuestionService;

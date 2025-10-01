@@ -3,6 +3,7 @@
 # RSN8TV TRIVIA DASHBOARD - COMPREHENSIVE FIX SCRIPT v2.0
 # Date: October 1, 2025
 # Purpose: Fix ALL admin dashboard errors with ZERO tolerance for failure
+# Credentials: axiom / HirschF843
 ###############################################################################
 
 set -e  # Exit immediately on any error
@@ -15,6 +16,13 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
+
+# Credentials
+DB_USER="axiom"
+DB_PASS="HirschF843"
+DB_NAME="rsn8tv_trivia"
+ADMIN_USER="axiom"
+ADMIN_PASS="HirschF843"
 
 # Directories
 PROJECT_ROOT="$HOME/rsn8tv-trivia"
@@ -47,7 +55,7 @@ fi
 echo -e "${GREEN}✓${NC} PM2 available"
 
 # Check database connection
-if ! psql -U axiom -d rsn8tv_trivia -c "SELECT 1" &> /dev/null; then
+if ! PGPASSWORD=$DB_PASS psql -U $DB_USER -d $DB_NAME -c "SELECT 1" &> /dev/null; then
     echo -e "${RED}❌ Database connection failed${NC}"
     exit 1
 fi
@@ -64,7 +72,7 @@ mkdir -p "$BACKUP_DIR"
 # Backup critical files
 cp server.js "$BACKUP_DIR/server.js.backup"
 cp routes/adminRoutes.js "$BACKUP_DIR/adminRoutes.js.backup"
-cp routes/questionRoutes.js "$BACKUP_DIR/questionRoutes.js.backup"
+cp routes/questionRoutes.js "$BACKUP_DIR/questionRoutes.js.backup" 2>/dev/null || echo "⚠️  questionRoutes.js not found"
 cp routes/leaderboardRoutes.js "$BACKUP_DIR/leaderboardRoutes.js.backup"
 cp services/questionService.js "$BACKUP_DIR/questionService.js.backup" 2>/dev/null || echo "⚠️  questionService.js not found"
 cp services/prizeService.js "$BACKUP_DIR/prizeService.js.backup" 2>/dev/null || echo "⚠️  prizeService.js not found"
@@ -293,10 +301,6 @@ echo ""
 echo -e "${CYAN}[4/9] Fixing server.js Service Initialization${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# Backup current server.js
-cp server.js server.js.pre-fix-backup
-
-# Create patched server.js
 cat > server.js << 'SERVER_EOF'
 require('dotenv').config();
 const express = require('express');
@@ -879,7 +883,7 @@ echo ""
 echo -e "${CYAN}[7/9] Verifying Database Function${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-psql -U axiom -d rsn8tv_trivia << 'DBSQL_EOF'
+PGPASSWORD=$DB_PASS psql -U $DB_USER -d $DB_NAME << 'DBSQL_EOF'
 -- Ensure get_leaderboard function returns rank_position consistently
 CREATE OR REPLACE FUNCTION get_leaderboard(
   p_period TEXT,
@@ -930,17 +934,14 @@ echo -e "${CYAN}[9/9] Running Verification Tests${NC}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Get auth token for testing
-echo "Enter admin password for testing:"
-read -s ADMIN_PASSWORD
-
 TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"axiom\",\"password\":\"$ADMIN_PASSWORD\"}" \
+  -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASS\"}" \
   | jq -r '.token')
 
 if [ "$TOKEN" = "null" ] || [ -z "$TOKEN" ]; then
     echo -e "${RED}❌ Failed to get auth token${NC}"
-    echo "Please restart manually and check PM2 logs: pm2 logs rsn8tv --lines 50"
+    echo "Please check PM2 logs: pm2 logs rsn8tv --lines 50"
     exit 1
 fi
 
@@ -992,12 +993,14 @@ echo "  • All endpoints tested and working"
 echo ""
 echo -e "${BLUE}📝 Next Steps:${NC}"
 echo "  1. Test dashboard at: https://trivia.rsn8tv.com/admin/monitoring"
-echo "  2. Check PM2 logs: pm2 logs rsn8tv --lines 50"
-echo "  3. Monitor for errors: pm2 monit"
+echo "  2. Login with: axiom / HirschF843"
+echo "  3. Check PM2 logs: pm2 logs rsn8tv --lines 50"
+echo "  4. Monitor for errors: pm2 monit"
 echo ""
 echo -e "${BLUE}💾 Backup Location:${NC} $BACKUP_DIR"
 echo ""
 echo -e "${YELLOW}⚠️  If issues occur, rollback with:${NC}"
-echo "   cp $BACKUP_DIR/*.backup ~/rsn8tv-trivia/trivia-server/[original-path]"
+echo "   cd $BACKUP_DIR"
+echo "   cp *.backup $SERVER_DIR/[original-paths]"
 echo "   pm2 restart rsn8tv"
 echo ""

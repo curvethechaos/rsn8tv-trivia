@@ -1,7 +1,4 @@
-// routes/leaderboardRoutes.js
-// This file contains only the leaderboard read endpoints
-// The submit-score endpoint belongs in sessionRoutes.js
-
+// routes/leaderboardRoutes.js - Fixed leaderboard with consistent response format
 const express = require('express');
 const router = express.Router();
 
@@ -10,7 +7,6 @@ router.get('/', async (req, res) => {
   const { period = 'weekly', limit = 100 } = req.query;
   const knex = req.app.locals.db;
 
-  // Validate period
   const validPeriods = ['weekly', 'monthly', 'quarterly', 'yearly'];
   if (!validPeriods.includes(period)) {
     return res.status(400).json({
@@ -19,7 +15,6 @@ router.get('/', async (req, res) => {
     });
   }
 
-  // Validate limit
   const numLimit = parseInt(limit);
   if (isNaN(numLimit) || numLimit < 1 || numLimit > 1000) {
     return res.status(400).json({
@@ -38,18 +33,20 @@ router.get('/', async (req, res) => {
 
     const { start_date, end_date } = periodDates.rows[0];
 
-    // Get leaderboard using the database function
+    // Get leaderboard
     const leaderboard = await knex.raw(`
       SELECT * FROM get_leaderboard(?, ?)
     `, [period, numLimit]);
 
-    // Format the response
+    // ✅ FIX: Consistent field mapping
     const formattedLeaderboard = leaderboard.rows.map(row => ({
-      rank: row.rank_position,
+      rank: row.rank_position || row.rank,
+      playerId: row.player_profile_id,
       nickname: row.nickname,
-      totalScore: row.total_score,
+      score: row.total_score,
       gamesPlayed: row.games_played,
-      averageScore: parseFloat(row.average_score)
+      averageScore: parseFloat(row.average_score).toFixed(2),
+      period: period
     }));
 
     res.json({
@@ -59,7 +56,7 @@ router.get('/', async (req, res) => {
         start: start_date,
         end: end_date
       },
-      leaderboard: formattedLeaderboard
+      data: formattedLeaderboard
     });
 
   } catch (error) {
@@ -72,7 +69,6 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/leaderboards/player/:playerId
-// Get a specific player's rankings across all periods
 router.get('/player/:playerId', async (req, res) => {
   const { playerId } = req.params;
   const knex = req.app.locals.db;
