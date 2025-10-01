@@ -1778,9 +1778,24 @@
 
         async function loadQuestions(page = 1) {
             try {
-                // Request paginated data from server
-                // The backend needs to support ?page=X&limit=Y parameters
-                const response = await apiCall(`/admin/questions?page=${page}&limit=${questionsPerPage}`);
+                // Read current filter values
+                const categoryFilter = document.getElementById("question-category")?.value || "";
+                const difficultyFilter = document.getElementById("question-difficulty")?.value || "";
+                const searchFilter = document.getElementById("question-search")?.value || "";
+                
+                // Build query with filters
+                let query = `/admin/questions?page=${page}&limit=${questionsPerPage}`;
+                if (categoryFilter && categoryFilter !== "all" && categoryFilter !== "") {
+                    query += `&category=${encodeURIComponent(categoryFilter)}`;
+                }
+                if (difficultyFilter && difficultyFilter !== "all" && difficultyFilter !== "") {
+                    query += `&difficulty=${encodeURIComponent(difficultyFilter)}`;
+                }
+                if (searchFilter) {
+                    query += `&search=${encodeURIComponent(searchFilter)}`;
+                }
+                
+                const response = await apiCall(query);
                 
                 // Handle different response formats
                 let questions = [];
@@ -1847,7 +1862,6 @@
                 }
                 
                 // Load categories for filter
-                loadQuestionCategories();
             } catch (error) {
                 console.error('Failed to load questions:', error);
                 updateQuestionsTable([], 0, 1);
@@ -1858,7 +1872,7 @@
         async function loadQuestionCategories() {
             try {
                 const response = await apiCall('/admin/questions/categories');
-                const categories = response.categories || response || [];
+                const categories = response.data || response.categories || response || [];
                 const select = document.getElementById('question-category');
                 if (select) {
                     select.innerHTML = '<option value="">All Categories</option>' + 
