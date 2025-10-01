@@ -2535,6 +2535,58 @@
             }
         }
 
+
+        async function showAddQuestionModal() {
+            showModal('Add New Question', `
+                <form id="add-question-form">
+                    <div class="form-group">
+                        <label class="form-label">Question</label>
+                        <textarea id="add-question-text" class="form-input" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Correct Answer</label>
+                        <input type="text" id="add-correct" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Incorrect Answers (one per line)</label>
+                        <textarea id="add-incorrect" class="form-input" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Category</label>
+                        <input type="text" id="add-category" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Difficulty</label>
+                        <select id="add-difficulty" class="form-select">
+                            <option value="easy">Easy</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="hard">Hard</option>
+                        </select>
+                    </div>
+                </form>
+            `, [
+                { text: 'Cancel', onclick: closeModal },
+                { text: 'Create', primary: true, onclick: async () => {
+                    try {
+                        await apiCall('/admin/questions', {
+                            method: 'POST',
+                            body: JSON.stringify({
+                                question: document.getElementById('add-question-text').value,
+                                correct_answer: document.getElementById('add-correct').value,
+                                incorrect_answers: document.getElementById('add-incorrect').value.split('\n').filter(a => a.trim()),
+                                category: document.getElementById('add-category').value,
+                                difficulty: document.getElementById('add-difficulty').value
+                            })
+                        });
+                        closeModal();
+                        showToast('Question created successfully', 'success');
+                        loadQuestions(1);
+                    } catch (error) {
+                        showToast('Failed to create question', 'error');
+                    }
+                }}
+            ]);
+        }
         async function saveBranding() {
             try {
                 // PUT /api/admin/branding/ from docs
