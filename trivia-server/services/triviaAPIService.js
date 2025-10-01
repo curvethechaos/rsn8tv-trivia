@@ -44,7 +44,7 @@ class TriviaAPIService {
       logger.info(`Fetching ${count} questions for session ${sessionId} from local database`);
 
       // Check if we have enough questions in the database
-      const totalCount = await knex('question_cache')
+      const totalCount = await knex('questions')
         .where('is_active', true)
         .where('word_count', '<=', this.config.maxWordCount)
         .count('id as count')
@@ -113,7 +113,7 @@ class TriviaAPIService {
       for (const category of slot.categories) {
         if (questionFetched) break;
 
-        const question = await knex('question_cache')
+        const question = await knex('questions')
           .where('is_active', true)
           .where('word_count', '<=', this.config.maxWordCount)
           .where('difficulty', slot.difficulty)
@@ -134,7 +134,7 @@ class TriviaAPIService {
 
       // If no category worked, get any question of that difficulty
       if (!questionFetched) {
-        const question = await knex('question_cache')
+        const question = await knex('questions')
           .where('is_active', true)
           .where('word_count', '<=', this.config.maxWordCount)
           .where('difficulty', slot.difficulty)
@@ -159,7 +159,7 @@ class TriviaAPIService {
    * Fetch questions by difficulty
    */
   async fetchByDifficulty(count, difficulty) {
-    const questions = await knex('question_cache')
+    const questions = await knex('questions')
       .where('is_active', true)
       .where('word_count', '<=', this.config.maxWordCount)
       .where('difficulty', difficulty)
@@ -176,7 +176,7 @@ class TriviaAPIService {
    * Fetch any available questions (fallback)
    */
   async fetchAnyQuestions(count, excludeIds = []) {
-    const questions = await knex('question_cache')
+    const questions = await knex('questions')
       .where('is_active', true)
       .whereNotIn('id', excludeIds)
       .orderBy('word_count', 'asc')  // Prefer shorter questions
@@ -209,13 +209,13 @@ class TriviaAPIService {
   async updateUsageStats(questionIds) {
     if (!questionIds || questionIds.length === 0) return;
 
-    await knex('question_cache')
+    await knex('questions')
       .whereIn('id', questionIds)
       .increment('times_used', 1)
       .update('last_used', new Date());
 
     // Check if any questions need rotation
-    const overusedQuestions = await knex('question_cache')
+    const overusedQuestions = await knex('questions')
       .whereIn('id', questionIds)
       .where('times_used', '>', this.config.maxUsageBeforeRotation)
       .select('id');
@@ -230,7 +230,7 @@ class TriviaAPIService {
    * Admin function to refresh question statistics
    */
   async refreshQuestionStats() {
-    const stats = await knex('question_cache')
+    const stats = await knex('questions')
       .select('difficulty', 'category')
       .select(knex.raw('COUNT(*) as total'))
       .select(knex.raw('COUNT(CASE WHEN word_count <= 15 THEN 1 END) as short_questions'))
@@ -270,10 +270,10 @@ class TriviaAPIService {
         // Only store the session-question relationship
         await trx('session_questions').insert({
           session_id: sessionId,
-          question_cache_id: question.id,
+          question_id: question.id,
           question_order: i,
           round_number: round
-        }).onConflict(['session_id', 'question_cache_id']).ignore();
+        }).onConflict(['session_id', 'question_id']).ignore();
       }
 
       await trx.commit();
@@ -303,8 +303,8 @@ class TriviaAPIService {
     return {
       id: dbQuestion.id,
       api_id: dbQuestion.api_question_id,
-      text: dbQuestion.question_text,
-      question: dbQuestion.question_text,
+      text: dbQuestion.question,
+      question: dbQuestion.question,
       category: dbQuestion.category,
       difficulty: dbQuestion.difficulty,
       correct_answer: dbQuestion.correct_answer,
@@ -325,7 +325,7 @@ class TriviaAPIService {
    */
   async getFallbackQuestionsFromDB(count) {
     try {
-      const questions = await knex('question_cache')
+      const questions = await knex('questions')
         .where('is_active', true)
         .orderBy('quality_score', 'desc')
         .orderBy('word_count', 'asc')

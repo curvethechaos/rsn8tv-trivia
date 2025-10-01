@@ -23,11 +23,6 @@ const questionRoutes = require('./routes/questionRoutes');
 const prizeRoutes    = require('./routes/prizeRoutes');
 const brandingRoutes = require('./routes/brandingRoutes');
 
-// Import Phase 1 services as CLASSES
-const ExportService = require('./services/exportService');
-const ThemeService = require('./services/themeService');
-const QuestionService = require('./services/questionService');
-const PrizeService = require('./services/prizeService');
 const BrandingService = require('./services/brandingService');
 
 // Initialize Express app and server
@@ -49,12 +44,12 @@ const gameManager = new GameManager(io, db);
 const profanityService = new ProfanityService();
 
 // ✅ FIX: Properly instantiate Phase 1 services
-const exportService = new ExportService(db);
-const themeService = new ThemeService(db);
-const questionService = new QuestionService(db);
-const prizeService = new PrizeService(db);
-const brandingService = new BrandingService(db);
-
+const exportService = require("./services/exportService");
+const themeService = require("./services/themeService");
+const QuestionService = require("./services/questionService");
+const questionService = new QuestionService();
+const prizeService = require("./services/prizeService");
+const brandingService = require("./services/brandingService");
 // ✅ CRITICAL: Attach all services to app.locals for route access
 app.locals.db = db;
 app.locals.io = io;
