@@ -297,11 +297,16 @@ router.post('/', [
         data: created
       });
     }
-
-    // Fallback to direct database insert
+    // Stringify incorrect_answers array for JSONB column
     if (Array.isArray(questionData.incorrect_answers)) {
       questionData.incorrect_answers = JSON.stringify(questionData.incorrect_answers);
     }
+    // Stringify incorrect_answers array for JSONB column
+    if (Array.isArray(questionData.incorrect_answers)) {
+      questionData.incorrect_answers = JSON.stringify(questionData.incorrect_answers);
+    }
+
+    // Fallback to direct database insert
     const [created] = await db('questions')
       .insert(questionData)
       .returning('*');
@@ -591,9 +596,6 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
     }
 
     // Fallback to direct database insert
-    if (Array.isArray(questionData.incorrect_answers)) {
-      questionData.incorrect_answers = JSON.stringify(questionData.incorrect_answers);
-    }
     await db('questions').insert(questions);
 
     res.json({
