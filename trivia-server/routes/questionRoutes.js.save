@@ -595,14 +595,16 @@ router.post('/import', upload.single('file'), async (req, res, next) => {
       });
     }
 
-// Fallback to direct database insert
+    // Fallback to direct database insert
     await db('questions').insert(questions);
-    
+
     res.json({
       success: true,
-      imported: questions.length,
-      errors: errors,
-      total: parseResult.data.length
+      data: {
+        imported: questions.length,
+        errors: errors,
+        total: parseResult.data.length
+      }
     });
   } catch (error) {
     console.error('Error importing questions:', error);
