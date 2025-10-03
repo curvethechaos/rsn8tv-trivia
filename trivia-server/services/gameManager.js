@@ -31,7 +31,7 @@ class GameManager {
 
     this.games.set(sessionId, {
       sessionId,
-      questions: [...questions, ...lightningQuestions],
+      questions: questions,
       status: 'waiting',
       currentRound: 1,
       currentQuestion: 0,
@@ -631,13 +631,27 @@ class GameManager {
   }
 
   // End game
-  async endGame(sessionId) {
+async endGame(sessionId) {
     const game = this.games.get(sessionId);
     if (!game) return;
 
     game.status = 'completed';
     this.clearQuestionTimer(sessionId);
     this.clearFadeTimers(sessionId);
+
+    // Save scores to database
+    try {
+      console.log(`[GameManager] Saving scores for ${game.players.size} players`);
+      for (const [clientId, stats] of game.players.entries()) {
+        console.log(`[GameManager] Saving ${clientId}: ${stats.totalScore} points`);
+        await this.db('players')
+          .where({ session_id: sessionId, client_id: clientId })
+          .update({ score: stats.totalScore });
+      }
+      console.log(`[GameManager] All scores saved to database`);
+    } catch (error) {
+      console.error(`[GameManager] Error saving scores:`, error);
+    }
 
     // Update database
     try {
@@ -648,9 +662,8 @@ class GameManager {
           ended_at: new Date()
         });
     } catch (error) {
-      console.error(`[GameManager] Error updating session end time:`, error);
+      console.error(`[GameManager] Error updating session:`, error);
     }
-
     // CHANGED: Calculate final scores for single round
     const totalQuestions = 10; // Only 10 questions now
     const finalScores = Array.from(game.players.entries()).map(([clientId, stats]) => ({
